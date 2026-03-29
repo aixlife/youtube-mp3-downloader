@@ -10,41 +10,60 @@ YouTube 영상을 MP3로 다운로드하는 Chrome 확장프로그램.
 
 ---
 
-## 설치 (2단계)
+## 설치 방법 (3가지 중 택 1)
 
-### 1단계: 자동 설치 스크립트 실행
+### 방법 A: Claude Code / Cowork 사용자 (가장 쉬움)
 
-이 저장소를 다운로드한 뒤, 본인 OS에 맞는 설치 파일을 실행합니다.
+Claude Code 또는 Cowork에 아래 문장을 그대로 복사해서 보내세요:
 
-> **[다운로드 방법]** 이 페이지 상단의 초록색 **Code** 버튼 → **Download ZIP** 클릭 → 압축 해제
+> **macOS:**
+> ```
+> https://github.com/aixlife/youtube-mp3-downloader 이 저장소를 ~/Projects에 클론하고, install-mac.sh를 실행해서 설치해줘. 완료되면 Chrome 확장프로그램 등록 방법을 알려줘.
+> ```
 
-#### macOS
+> **Windows:**
+> ```
+> https://github.com/aixlife/youtube-mp3-downloader 이 저장소를 클론하고, install-windows.bat을 실행해서 설치해줘. 완료되면 Chrome 확장프로그램 등록 방법을 알려줘.
+> ```
 
-터미널을 열고 아래 명령어를 복사해서 실행:
+Claude가 다운로드, 설치, 서버 실행까지 전부 처리합니다. 이후 Chrome 확장프로그램 등록만 직접 하면 됩니다 (아래 참고).
+
+---
+
+### 방법 B: macOS 직접 설치
+
+1. 이 페이지 상단의 초록색 **Code** 버튼 → **Download ZIP** 클릭 → 압축 해제
+2. **Finder**에서 `응용 프로그램` → `유틸리티` → **터미널** 을 엽니다
+3. 아래 두 줄을 복사해서 터미널에 붙여넣고 Enter:
 
 ```
 cd ~/Downloads/youtube-mp3-downloader-main
 bash install-mac.sh
 ```
 
-> Node.js, yt-dlp, ffmpeg 설치 + 서버 자동 실행 등록이 한 번에 완료됩니다.
-
-#### Windows
-
-1. `install-windows.bat` 파일을 **마우스 오른쪽 클릭** → **관리자 권한으로 실행**
-2. 설치가 자동으로 진행됩니다
-
-> Node.js, yt-dlp, ffmpeg 설치 + 서버 자동 실행 등록이 한 번에 완료됩니다.
+4. 비밀번호를 물어보면 Mac 로그인 비밀번호 입력 (입력해도 화면에 안 보이는 게 정상)
+5. "✅ 설치 완료!" 가 나오면 성공
 
 ---
 
-### 2단계: Chrome 확장프로그램 등록
+### 방법 C: Windows 직접 설치
+
+1. 이 페이지 상단의 초록색 **Code** 버튼 → **Download ZIP** 클릭 → 압축 해제
+2. 압축 해제한 폴더에서 `install-windows.bat` 파일을 찾습니다
+3. **마우스 오른쪽 클릭** → **관리자 권한으로 실행**
+4. "✅ 설치 완료!" 가 나오면 성공
+
+---
+
+## Chrome 확장프로그램 등록 (모든 방법 공통, 필수)
+
+설치가 완료된 후 아래 단계를 진행합니다.
 
 1. 브라우저 주소창에 `chrome://extensions` 입력 후 Enter
 2. 우측 상단 **개발자 모드** 스위치를 켭니다
 3. **압축해제된 확장 프로그램을 로드합니다** 버튼 클릭
 4. 다운로드한 폴더 안의 **extension** 폴더를 선택합니다
-5. YouTube 영상을 열면 영상 아래에 MP3 다운로드 바가 나타납니다!
+5. YouTube 아무 영상을 열면 영상 아래에 MP3 다운로드 바가 나타납니다!
 
 > Arc, Brave, Edge 등 Chromium 기반 브라우저도 동일하게 가능합니다.
 
