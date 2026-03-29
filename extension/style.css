@@ -1,0 +1,84 @@
+/* YouTube MP3 Downloader UI */
+#yt-mp3-container {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  margin-top: 8px;
+  background: #1a1a1a;
+  border-radius: 8px;
+  font-family: 'Roboto', Arial, sans-serif;
+  font-size: 13px;
+  color: #fff;
+}
+
+#yt-mp3-container input[type="text"] {
+  width: 60px;
+  padding: 4px 8px;
+  border: 1px solid #444;
+  border-radius: 4px;
+  background: #2a2a2a;
+  color: #fff;
+  font-size: 13px;
+  text-align: center;
+}
+
+#yt-mp3-container input[type="text"]::placeholder {
+  color: #888;
+}
+
+#yt-mp3-container label {
+  color: #aaa;
+  font-size: 12px;
+}
+
+#yt-mp3-btn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 16px;
+  border: none;
+  border-radius: 18px;
+  background: #ff0050;
+  color: #fff;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+#yt-mp3-btn:hover {
+  background: #e00048;
+}
+
+#yt-mp3-btn:disabled {
+  background: #555;
+  cursor: not-allowed;
+}
+
+#yt-mp3-btn svg {
+  width: 16px;
+  height: 16px;
+  fill: currentColor;
+}
+
+#yt-mp3-status {
+  color: #aaa;
+  font-size: 12px;
+  margin-left: 4px;
+}
+
+#yt-mp3-current-btn {
+  padding: 2px 8px;
+  border: 1px solid #555;
+  border-radius: 4px;
+  background: transparent;
+  color: #aaa;
+  font-size: 11px;
+  cursor: pointer;
+}
+
+#yt-mp3-current-btn:hover {
+  border-color: #888;
+  color: #fff;
+}

@@ -1,0 +1,23 @@
+{
+  "manifest_version": 3,
+  "name": "YouTube MP3 Downloader",
+  "version": "1.0.0",
+  "description": "YouTube 영상의 원하는 구간을 MP3로 다운로드",
+  "permissions": [],
+  "host_permissions": [
+    "http://localhost:3456/*"
+  ],
+  "content_scripts": [
+    {
+      "matches": [
+        "*://www.youtube.com/watch*",
+        "*://www.youtube.com/live/*"
+      ],
+      "js": ["content.js"]
+    }
+  ],
+  "icons": {
+    "48": "icon48.png",
+    "128": "icon128.png"
+  }
+}

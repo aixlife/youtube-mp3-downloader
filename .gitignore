@@ -1,0 +1,8 @@
+node_modules/
+*.mp3
+*.webm
+*.part
+.DS_Store
+.env
+*.log
+*.err
