@@ -33,7 +33,7 @@ INBOX: <데일리 노트용 제안 요약 한 줄>
 
 OUT=$(env -u ANTHROPIC_API_KEY claude -p "$PROMPT" \
   --model sonnet --add-dir "$SELF_DIR" --add-dir "$VAULT" --add-dir "$(dirname "$SRC")" \
-  --allowedTools "Read" --max-turns 8 2>>"$LOG")
+  --allowedTools "Read" --max-turns 12 2>>"$LOG")
 RC=$?
 
 SLUG=$(printf '%s\n' "$OUT" | grep -m1 '^SLUG:' | sed 's/^SLUG:[[:space:]]*//' | tr -cd 'a-zA-Z0-9가-힣-' | cut -c1-40)
