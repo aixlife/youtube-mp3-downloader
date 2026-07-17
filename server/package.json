@@ -6,7 +6,8 @@
     "start": "node server.js"
   },
   "dependencies": {
+    "cors": "^2.8.5",
     "express": "^4.21.0",
-    "cors": "^2.8.5"
+    "playwright-core": "^1.59.1"
   }
 }
