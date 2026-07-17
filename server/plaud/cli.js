@@ -205,9 +205,18 @@ function isTruncatedName(name) {
   return /(?:\u2026|\.\.\.)$/.test(String(name || '').trim());
 }
 
+// PLAUD CLI의 날짜/타임스탬프는 UTC 기준(타임존 접미사 없음) — 로컬로 해석하면 KST에서 9시간 과거로 밀려
+// 방금 업로드한 파일이 since 필터에 걸러진다 (2026-07-17 실측: created_at 23:35Z = 익일 08:35 KST 업로드).
+function parseUtcTimestamp(value) {
+  const raw = String(value || '').trim();
+  if (!raw) return NaN;
+  const withZone = /[zZ]$|[+-]\d{2}:?\d{2}$/.test(raw) ? raw : `${raw}Z`;
+  return new Date(withZone).getTime();
+}
+
 function latestEpochForCliDate(date) {
   if (!/^\d{4}-\d{2}-\d{2}$/.test(String(date || ''))) return null;
-  const value = new Date(`${date}T23:59:59.999`).getTime();
+  const value = new Date(`${date}T23:59:59.999Z`).getTime();
   return Number.isNaN(value) ? null : value;
 }
 
@@ -227,7 +236,7 @@ async function findRecentByTitle(title, sinceEpochMs = 0) {
         const meta = await getFileMeta(file.id);
         if (!titlePrefixMatches(meta.name, normalizedTitle)) continue;
         if (since > 0) {
-          const createdAt = new Date(meta.createdAt || '').getTime();
+          const createdAt = parseUtcTimestamp(meta.createdAt);
           if (Number.isNaN(createdAt)) throw new Error('Could not parse PLAUD file created_at timestamp.');
           if (createdAt < since) continue;
         }
