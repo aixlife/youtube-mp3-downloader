@@ -85,7 +85,7 @@ async function createUI() {
         outline: none;
       }
       input::placeholder { color: #777; }
-      input:focus { border-color: #ff0050; }
+      input:focus { border-color: #2563eb; }
       label {
         color: #aaa;
         font-size: 12px;
@@ -102,14 +102,11 @@ async function createUI() {
         white-space: nowrap;
       }
       .cur-btn:hover { border-color: #aaa; color: #fff; }
-      .dl-btn {
-        display: flex;
-        align-items: center;
-        gap: 6px;
+      .plaud-btn {
         padding: 7px 18px;
         border: none;
         border-radius: 20px;
-        background: #ff0050;
+        background: #2563eb;
         color: #fff;
         font-size: 13px;
         font-weight: 600;
@@ -117,9 +114,8 @@ async function createUI() {
         white-space: nowrap;
         transition: background 0.15s;
       }
-      .dl-btn:hover { background: #e00045; }
-      .dl-btn:disabled { background: #555; cursor: wait; }
-      .dl-btn svg { width: 16px; height: 16px; fill: #fff; }
+      .plaud-btn:hover { background: #1d4ed8; }
+      .plaud-btn:disabled { background: #555; cursor: wait; }
       .status {
         color: #aaa;
         font-size: 12px;
@@ -131,30 +127,6 @@ async function createUI() {
         height: 20px;
         background: #444;
         margin: 0 4px;
-      }
-
-      /* Split controls */
-      .split-group {
-        display: flex;
-        align-items: center;
-        gap: 4px;
-      }
-      .split-btn {
-        padding: 4px 10px;
-        border: 1px solid #555;
-        border-radius: 6px;
-        background: transparent;
-        color: #aaa;
-        font-size: 12px;
-        cursor: pointer;
-        white-space: nowrap;
-        transition: all 0.15s;
-      }
-      .split-btn:hover { border-color: #aaa; color: #fff; }
-      .split-btn.active {
-        border-color: #ff0050;
-        color: #ff0050;
-        background: rgba(255, 0, 80, 0.1);
       }
 
       /* Progress */
@@ -173,7 +145,7 @@ async function createUI() {
       .progress-bar-fill {
         height: 100%;
         width: 0%;
-        background: linear-gradient(90deg, #ff0050, #ff4081);
+        background: linear-gradient(90deg, #2563eb, #60a5fa);
         border-radius: 3px;
         transition: width 0.3s ease;
       }
@@ -186,10 +158,16 @@ async function createUI() {
         color: #999;
       }
       .progress-percent {
-        color: #ff0050;
+        color: #60a5fa;
         font-weight: 600;
         font-size: 12px;
       }
+      .part-info {
+        margin-top: 4px;
+        font-size: 11px;
+        color: #888;
+      }
+      .part-info:empty { display: none; }
     </style>
     <div class="container">
       <div class="row">
@@ -205,22 +183,8 @@ async function createUI() {
 
         <div class="sep"></div>
 
-        <button class="dl-btn" id="dl-btn">
-          <svg viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 13.5v-7l5.5 3.5-5.5 3.5z"/></svg>
-          MP3 다운로드
-        </button>
+        <button class="plaud-btn" id="plaud-btn">PLAUD로 보내기</button>
         <span class="status" id="status"></span>
-      </div>
-
-      <div class="row">
-        <label>분할</label>
-        <div class="split-group">
-          <button class="split-btn active" data-split="1">전체</button>
-          <button class="split-btn" data-split="2">2분할</button>
-          <button class="split-btn" data-split="3">3분할</button>
-          <button class="split-btn" data-split="4">4분할</button>
-          <button class="split-btn" data-split="5">5분할</button>
-        </div>
       </div>
 
       <div class="progress-area" id="progress-area">
@@ -231,6 +195,7 @@ async function createUI() {
           <span id="progress-phase">준비 중...</span>
           <span class="progress-percent" id="progress-percent">0%</span>
         </div>
+        <div class="part-info" id="part-info"></div>
       </div>
     </div>
   `;
@@ -238,16 +203,6 @@ async function createUI() {
   target.parentNode.insertBefore(host, target.nextSibling);
 
   const root = shadow;
-  let selectedSplit = 1;
-
-  // Split button handlers
-  root.querySelectorAll('.split-btn').forEach(btn => {
-    btn.addEventListener('click', () => {
-      root.querySelectorAll('.split-btn').forEach(b => b.classList.remove('active'));
-      btn.classList.add('active');
-      selectedSplit = parseInt(btn.dataset.split);
-    });
-  });
 
   root.getElementById('cur-start').addEventListener('click', () => {
     const video = document.querySelector('video');
@@ -259,23 +214,20 @@ async function createUI() {
     if (video) root.getElementById('end').value = formatTime(video.currentTime);
   });
 
-  root.getElementById('dl-btn').addEventListener('click', () => {
-    if (selectedSplit > 1) {
-      handleSplitDownload(root, selectedSplit);
-    } else {
-      handleDownload(root);
-    }
+  root.getElementById('plaud-btn').addEventListener('click', () => {
+    handlePlaudSend(root);
   });
 }
 
-// ===== Single download =====
-async function handleDownload(root) {
-  const btn = root.getElementById('dl-btn');
+// ===== Send to PLAUD =====
+async function handlePlaudSend(root) {
+  const btn = root.getElementById('plaud-btn');
   const status = root.getElementById('status');
   const progressArea = root.getElementById('progress-area');
   const progressFill = root.getElementById('progress-fill');
   const progressPhase = root.getElementById('progress-phase');
   const progressPercent = root.getElementById('progress-percent');
+  const partInfo = root.getElementById('part-info');
   const startVal = root.getElementById('start').value;
   const endVal = root.getElementById('end').value;
 
@@ -284,18 +236,19 @@ async function handleDownload(root) {
   const end = parseTime(endVal);
 
   btn.disabled = true;
-  btn.textContent = '⏳ 다운로드 중...';
+  btn.textContent = 'PLAUD 전송 중...';
   status.textContent = '';
+  partInfo.textContent = '';
   progressArea.classList.add('active');
   progressFill.style.width = '0%';
-  progressPhase.textContent = '준비 중...';
+  progressPhase.textContent = 'PLAUD 전송 준비 중...';
   progressPercent.textContent = '0%';
 
   try {
     try { await fetch(`${SERVER_URL}/health`); }
-    catch { status.textContent = '⚠️ 서버 꺼짐!'; btn.disabled = false; resetBtn(btn); progressArea.classList.remove('active'); return; }
+    catch { status.textContent = '⚠️ 서버 꺼짐!'; progressArea.classList.remove('active'); return; }
 
-    const startRes = await fetch(`${SERVER_URL}/download`, {
+    const startRes = await fetch(`${SERVER_URL}/plaud/send`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ url, start, end }),
@@ -303,81 +256,17 @@ async function handleDownload(root) {
     if (!startRes.ok) throw new Error((await startRes.json()).error || 'Failed');
 
     const { jobId } = await startRes.json();
-    let serverFilename = 'audio.mp3';
-
     await listenProgress(jobId, progressFill, progressPercent, progressPhase, (data) => {
-      if (data.filename) serverFilename = data.filename;
+      // 5시간 초과로 자동 분할된 경우 파트 진행 상황을 보여준다
+      if (data.totalParts > 1) {
+        partInfo.textContent = `자동 분할 ${data.totalParts}개 · 현재 파트 ${data.currentPart || 1}/${data.totalParts}`;
+      }
     });
-
-    await downloadFile(`${SERVER_URL}/file/${jobId}`, serverFilename);
 
     progressFill.style.width = '100%';
     progressPercent.textContent = '100%';
-    progressPhase.textContent = '완료!';
-    status.textContent = '✅ 완료!';
-    setTimeout(() => progressArea.classList.remove('active'), 3000);
-
-  } catch (err) {
-    status.textContent = `❌ ${err.message}`;
-    progressArea.classList.remove('active');
-  } finally {
-    btn.disabled = false;
-    resetBtn(btn);
-  }
-}
-
-// ===== Split download =====
-async function handleSplitDownload(root, splits) {
-  const btn = root.getElementById('dl-btn');
-  const status = root.getElementById('status');
-  const progressArea = root.getElementById('progress-area');
-  const progressFill = root.getElementById('progress-fill');
-  const progressPhase = root.getElementById('progress-phase');
-  const progressPercent = root.getElementById('progress-percent');
-
-  const url = window.location.href;
-
-  btn.disabled = true;
-  btn.textContent = `⏳ ${splits}분할 다운로드 중...`;
-  status.textContent = '';
-  progressArea.classList.add('active');
-  progressFill.style.width = '0%';
-  progressPhase.textContent = '영상 정보 분석 중...';
-  progressPercent.textContent = '0%';
-
-  try {
-    try { await fetch(`${SERVER_URL}/health`); }
-    catch { status.textContent = '⚠️ 서버 꺼짐!'; btn.disabled = false; resetBtn(btn); progressArea.classList.remove('active'); return; }
-
-    const startRes = await fetch(`${SERVER_URL}/download-split`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ url, splits }),
-    });
-    if (!startRes.ok) throw new Error((await startRes.json()).error || 'Failed');
-
-    const { jobId } = await startRes.json();
-    let filesList = [];
-
-    // Listen to progress
-    await listenProgress(jobId, progressFill, progressPercent, progressPhase, (data) => {
-      if (data.files) filesList = data.files;
-    });
-
-    // Download all parts sequentially
-    progressPhase.textContent = '파일 저장 중...';
-    for (let i = 0; i < filesList.length; i++) {
-      const file = filesList[i];
-      progressPhase.textContent = `파일 저장 중... (${i + 1}/${filesList.length})`;
-      await downloadFile(`${SERVER_URL}/file/${jobId}/${file.part}`, file.filename);
-      // Small delay between downloads
-      await new Promise(r => setTimeout(r, 500));
-    }
-
-    progressFill.style.width = '100%';
-    progressPercent.textContent = '100%';
-    progressPhase.textContent = `${splits}개 파트 다운로드 완료!`;
-    status.textContent = `✅ ${splits}개 파일 완료!`;
+    progressPhase.textContent = 'PLAUD 업로드 제출 완료!';
+    status.textContent = '✅ PLAUD 전송 완료!';
     setTimeout(() => progressArea.classList.remove('active'), 5000);
 
   } catch (err) {
@@ -385,7 +274,7 @@ async function handleSplitDownload(root, splits) {
     progressArea.classList.remove('active');
   } finally {
     btn.disabled = false;
-    resetBtn(btn);
+    btn.textContent = 'PLAUD로 보내기';
   }
 }
 
@@ -431,27 +320,6 @@ function listenProgress(jobId, progressFill, progressPercent, progressPhase, onD
 
     connect();
   });
-}
-
-async function downloadFile(url, filename) {
-  const res = await fetch(url);
-  if (!res.ok) throw new Error(`파일 다운로드 실패: ${filename}`);
-  const blob = await res.blob();
-  const downloadUrl = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = downloadUrl;
-  a.download = filename;
-  document.body.appendChild(a);
-  a.click();
-  a.remove();
-  URL.revokeObjectURL(downloadUrl);
-}
-
-function resetBtn(btn) {
-  btn.innerHTML = `
-    <svg viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 13.5v-7l5.5 3.5-5.5 3.5z"/></svg>
-    MP3 다운로드
-  `;
 }
 
 // ===== YouTube SPA navigation =====

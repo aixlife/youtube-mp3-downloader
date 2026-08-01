@@ -23,11 +23,21 @@ TODAY=$(date +%F)
 [ -s "$SRC" ] || { echo "$(date +%F\ %T) SKIP no-transcript $TITLE" >> "$LOG"; exit 1; }
 [ -s "$RULES" ] || { echo "$(date +%F\ %T) SKIP no-rules" >> "$LOG"; exit 1; }
 
+# 링크 후보 목록. allowedTools가 Read뿐이라 모델이 디렉토리를 훑을 수 없으므로 여기서 직접 넘긴다.
+# 이게 없으면 '## 연결' 섹션에 존재하지 않는 노트를 지어내게 된다.
+RECENT_NOTES=$(ls -t "$VAULT/insights/videos"/*.md 2>/dev/null | head -40 \
+  | sed 's|.*/||; s|\.md$||' | sed 's|^|- insights/videos/|')
+
 PROMPT="너는 PLAUD 영상 인사이트 후처리기다. 파일을 쓰지 마라 — 읽고 생성해서 출력만 하라.
 1. 규칙 파일 전체를 읽어라: $RULES
 2. 상황 팩을 읽어라: $PACK (없으면 규칙 파일 1절의 대체 경로)
 3. 전사를 읽어라: $SRC (제목: \"$TITLE\", PLAUD id: $PLAUD_ID)
-4. 규칙의 노트 포맷·적용 제안 생성 규칙(1액션+1질문, 대기 제안 2-3, 일반론 금지, 확신도 게이트)을 정확히 따라 노트 전문을 생성하라.
+   전사 첫머리에 '# PLAUD 5시간 업로드 한계로 N개 파트로 나눠 올린 뒤 병합' 헤더가 있으면 긴 영상을 분할 처리한 것이다.
+   타임스탬프는 원본 기준으로 보정돼 있으니 그대로 믿되, 화자 번호는 파트마다 독립 분석이라 파트가 다르면 같은 번호도 다른 사람일 수 있다.
+4. 규칙의 노트 포맷·적용 제안 생성 규칙(1액션+1질문, 대기 제안 2-3, 일반론 금지, 확신도 게이트, assets 순서 고정)을 정확히 따라 노트 전문을 생성하라.
+   '## 연결'에는 아래 기존 노트 중 실제로 이어지는 것을 최소 1개 [[insights/videos/파일명]] 형식으로 넣어라.
+   목록에 없는 이름을 지어내지 마라. 이어질 만한 것이 정말 없으면 상황 팩에 나온 프로젝트 노트로 연결하라.
+$RECENT_NOTES
 5. 출력 형식 (이 구조 외 다른 텍스트 금지):
 SLUG: <파일명용 한글-하이픈 슬러그 40자 이내, 날짜 제외>
 INBOX: <데일리 노트용 제안 요약 한 줄>
@@ -44,6 +54,9 @@ SLUG=$(printf '%s' "$SLUG" | sed -E 's/^([0-9]{4}-[0-9]{2}-[0-9]{2}-)+//')  # �
 SLUG=${SLUG[1,40]}  # zsh 문자 단위 절단 — cut -c는 C 로케일에서 한글을 바이트로 잘라 파일명 파손
 INBOX=$(printf '%s\n' "$OUT" | grep -m1 '^INBOX:' | sed 's/^INBOX:[[:space:]]*//')
 NOTE_BODY=$(printf '%s\n' "$OUT" | sed -n '/^---NOTE---$/,$p' | tail -n +2 | sed '/^```[a-z]*$/d')
+# frontmatter는 파일 첫 줄이 '---'여야 Obsidian이 속성으로 인식한다. 모델이 앞에 빈 줄을 넣는 일이
+# 간헐적으로 있어(2026-08-02 기준 67건 중 3건 발생) 선행 빈 줄을 잘라낸다.
+NOTE_BODY=$(printf '%s\n' "$NOTE_BODY" | sed '/./,$!d')
 
 if [ $RC -ne 0 ] || [ -z "$SLUG" ] || [ -z "$NOTE_BODY" ]; then
   echo "$(date +%F\ %T) FAIL rc=$RC $TITLE :: $(printf '%s' "$OUT" | tail -c 200)" >> "$LOG"
