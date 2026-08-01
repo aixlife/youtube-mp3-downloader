@@ -427,6 +427,31 @@ function createPlaudExtensionUpload(deps) {
     }
   }
 
+  // 업로드(브라우저)와 전사 수확(CLI)을 분리한 단계. 분할 업로드에서 수확만 병렬로 돌리기 위한 것.
+  // 컨텍스트를 닫지 않으므로 다음 파트가 같은 브라우저를 재사용한다.
+  async function uploadPartFile(job) {
+    const startedAt = Date.now();
+    const { page } = await startPlaudUploadPage(job);
+
+    job.progress = 90;
+    job.phase = 'PLAUD에 파일을 전달했습니다. 업로드 시작을 기다리는 중...';
+    await page.waitForTimeout(plaudPostSelectWaitMs);
+
+    await waitForImportComplete(page, job);
+    await closeImportDialog(page);
+    console.log(`[plaud-timing] ${fileTitleFromJob(job)} 업로드+import: ${humanElapsed(Date.now() - startedAt)}`);
+  }
+
+  // 전사 대기와 다운로드. 브라우저를 쓰지 않아 파트끼리 동시에 돌 수 있다.
+  async function harvestPartTranscript(job) {
+    const startedAt = Date.now();
+    await recoverPlaudWithCli(job);
+    job.keepFile = true;
+    job.status = 'done';
+    job.progress = 100;
+    console.log(`[plaud-timing] ${fileTitleFromJob(job)} 전사대기+다운로드: ${humanElapsed(Date.now() - startedAt)}`);
+  }
+
   async function uploadToPlaud(job) {
     let { context, page, headless } = await startPlaudUploadPage(job);
 
@@ -521,12 +546,16 @@ function createPlaudExtensionUpload(deps) {
       includeNote: parentJob.includeNote,
       keepFile: true,
       skipInsight: true,
+      // 전사 수확은 파트끼리 동시에 돌기 때문에, 그때 각자 부모 phase를 쓰면 화면이 요동친다.
+      // 업로드 단계에서만 미러링하고 수확 단계 진입 시 끈다.
+      mirrorToParent: true,
       createdAt: Date.now(),
     };
 
     return new Proxy(base, {
       set(target, prop, value) {
         target[prop] = value;
+        if (!target.mirrorToParent) return true;
         if (prop === 'phase') {
           parentJob.phase = `[파트 ${partIndex + 1}/${partCount}] ${value}`;
         } else if (prop === 'progress' && typeof value === 'number') {
@@ -590,9 +619,19 @@ function createPlaudExtensionUpload(deps) {
 
     fs.unlink(sourcePath, () => {});
 
-    // 2) 순차 업로드 + 파트별 transcript 수집
+    // 2) 업로드는 순차. 전사 대기(수 분)는 브라우저를 쓰지 않으므로 3)에서 한꺼번에 병렬로 돌린다.
+    //    순차로 다 하면 파트1이 전사되는 동안 파트2가 놀고, 브라우저도 파트마다 새로 뜬다.
+    const HARVEST_START = 75;
+    const cliReady = plaudCli.selectPlaudRecoveryMode(await plaudCli.cliAvailable()) === 'cli';
+    if (!cliReady) {
+      // CLI가 없으면 전사 수확에도 브라우저가 필요해 병렬이 불가능하다. 기존 순차 경로로 간다.
+      console.warn('[plaud] PLAUD CLI를 쓸 수 없어 파트 전사를 순차로 처리합니다.');
+    }
+
     const succeeded = [];
     const failed = [];
+    const uploaded = [];
+
     for (let i = 0; i < parts.length; i++) {
       const part = parts[i];
       job.currentPart = part.partNum;
@@ -603,18 +642,55 @@ function createPlaudExtensionUpload(deps) {
         filePath: part.path,
         title: part.title,
         spanStart: UPLOAD_START,
-        spanEnd: UPLOAD_END,
+        spanEnd: cliReady ? HARVEST_START : UPLOAD_END,
       });
 
       try {
-        await uploadToPlaud(partJob);
-        succeeded.push({ ...part, transcriptPath: partJob.downloadPath, plaudFileId: partJob.plaudFileId });
-        console.log(`[job:${job.id}] 파트 ${part.partNum}/${partCount} 완료: ${partJob.downloadPath}`);
+        if (cliReady) {
+          await uploadPartFile(partJob);
+          uploaded.push({ part, partJob });
+        } else {
+          await uploadToPlaud(partJob);
+          succeeded.push({ ...part, transcriptPath: partJob.downloadPath, plaudFileId: partJob.plaudFileId });
+          console.log(`[job:${job.id}] 파트 ${part.partNum}/${partCount} 완료: ${partJob.downloadPath}`);
+        }
       } catch (err) {
         console.error(`[job:${job.id}] 파트 ${part.partNum}/${partCount} 실패: ${err.message}`);
         failed.push({ partNum: part.partNum, error: err.message });
         try { moveJobFile(partJob, 'failed'); } catch {}
       }
+    }
+
+    // 3) 전사 대기 + 다운로드를 파트끼리 동시에
+    if (cliReady && uploaded.length) {
+      await resetPlaudContext().catch(() => {});  // 업로드가 끝났으니 브라우저를 놓아준다
+
+      let harvested = 0;
+      job.progress = HARVEST_START;
+      job.phase = `파트 ${uploaded.length}개 전사 대기 중... (0/${uploaded.length} 완료)`;
+
+      const results = await Promise.allSettled(uploaded.map(async ({ partJob }) => {
+        partJob.mirrorToParent = false;   // 동시 진행이라 각자 부모 phase를 덮어쓰면 안 된다
+        await harvestPartTranscript(partJob);
+        harvested += 1;
+        job.progress = HARVEST_START + (harvested / uploaded.length) * (UPLOAD_END - HARVEST_START);
+        job.phase = `파트 전사 완료 ${harvested}/${uploaded.length}`;
+      }));
+
+      results.forEach((result, idx) => {
+        const { part, partJob } = uploaded[idx];
+        if (result.status === 'fulfilled') {
+          succeeded.push({ ...part, transcriptPath: partJob.downloadPath, plaudFileId: partJob.plaudFileId });
+          console.log(`[job:${job.id}] 파트 ${part.partNum}/${partCount} 완료: ${partJob.downloadPath}`);
+        } else {
+          const message = result.reason && result.reason.message ? result.reason.message : '원인 미상';
+          console.error(`[job:${job.id}] 파트 ${part.partNum}/${partCount} 전사 실패: ${message}`);
+          failed.push({ partNum: part.partNum, error: message });
+          try { moveJobFile(partJob, 'failed'); } catch {}
+        }
+      });
+
+      succeeded.sort((a, b) => a.partNum - b.partNum);   // 병렬 완료 순서가 아니라 시간순으로 병합해야 한다
     }
 
     if (!succeeded.length) {
@@ -644,6 +720,14 @@ function createPlaudExtensionUpload(deps) {
     job.phase = failed.length
       ? `${succeeded.length}/${partCount}개 파트만 병합됨: ${mergedPath} — 실패 파트는 PlaudQueue/failed에서 재시도하세요`
       : `${partCount}개 파트 병합 완료: ${mergedPath}`;
+
+    // 파트별 transcript는 내용이 전부 병합본에 들어갔다. 남겨두면 한 영상에 파일이 3개가 되어
+    // 나중에 "어느 걸 AI에게 읽혀야 하지"를 매번 판단하게 된다. 한 영상당 파일 하나만 남긴다.
+    for (const item of succeeded) {
+      if (item.transcriptPath && item.transcriptPath !== mergedPath) {
+        fs.unlink(item.transcriptPath, () => {});
+      }
+    }
 
     const fileIds = succeeded.map((s) => s.plaudFileId).filter(Boolean).join(',');
     if (spawnInsightProcessor(mergedPath, baseTitle, fileIds || 'split')) {
