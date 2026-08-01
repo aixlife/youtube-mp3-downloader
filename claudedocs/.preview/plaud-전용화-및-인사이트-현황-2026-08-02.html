@@ -1,0 +1,263 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>PLAUD 전용화 + 옵시디언 인사이트 파이프라인 현황</title>
+<style>
+/* 확인용 미리보기 공용 골격 — 수정하지 말고 그대로 복사 후 {{ }} 자리만 치환 */
+:root { color-scheme: dark; }
+* { margin:0; padding:0; box-sizing:border-box; }
+body { background:#101314; color:#e2e8e8; font-family:'Pretendard Variable',Pretendard,-apple-system,'Apple SD Gothic Neo','Noto Sans KR',sans-serif; line-height:1.7; word-break:keep-all; padding:48px 24px 96px; }
+.wrap { max-width:720px; margin:0 auto; }
+.eyebrow { font-size:13px; letter-spacing:.14em; color:#4a7fe8; font-weight:700; margin-bottom:10px; }
+h1 { font-size:24px; font-weight:800; margin-bottom:8px; }
+.sub { color:#93a3a3; font-size:14px; margin-bottom:32px; }
+h2 { font-size:17px; font-weight:800; margin:40px 0 12px; color:#edf3f2; padding-top:24px; border-top:1px solid #232a2c; }
+h2:first-of-type { border-top:none; padding-top:0; }
+p { font-size:14.5px; color:#c3cecd; margin-bottom:10px; }
+ul, ol { margin:0 0 12px 20px; font-size:14.5px; color:#c3cecd; }
+li { margin-bottom:5px; }
+.card { background:#161b1d; border:1px solid #232a2c; border-radius:14px; padding:18px 20px; margin:12px 0; }
+table { width:100%; border-collapse:collapse; font-size:13.5px; margin:14px 0; }
+th { text-align:left; color:#8fa0a0; font-weight:700; padding:8px 10px; border-bottom:1px solid #2a3234; white-space:nowrap; }
+td { padding:9px 10px; border-bottom:1px solid #1d2426; vertical-align:top; }
+.note { margin-top:10px; font-size:12.5px; color:#6d7d7c; }
+/* 카톡 초안 버블 (필요 시 사용) */
+.kakao { background:#bacee0; border-radius:16px; padding:22px 18px; margin-top:14px; }
+.sender { font-size:12px; color:#4a5a68; margin-bottom:6px; font-weight:600; }
+.bubble { background:#ffffff; color:#111; border-radius:4px 14px 14px 14px; padding:14px 16px; font-size:14.5px; line-height:1.65; white-space:pre-wrap; box-shadow:0 1px 2px rgba(0,0,0,.15); }
+.btnrow { display:flex; gap:10px; margin-top:14px; }
+button { flex:1; background:#4a7fe8; color:#0b1018; border:none; border-radius:10px; padding:12px 0; font-size:14.5px; font-weight:800; cursor:pointer; font-family:inherit; }
+button:active { transform:translateY(1px); }
+button.done { background:#8fce8f; }
+</style>
+</head>
+<body>
+<div class="wrap">
+<div class="eyebrow">문서</div>
+<h1>PLAUD 전용화 + 옵시디언 인사이트 파이프라인 현황</h1>
+<p class="sub">plaud-전용화-및-인사이트-현황-2026-08-02.md</p>
+
+<style>div.decision{border:1px solid #3f3f46;border-left:3px solid #56B4E9;background:#18181b;border-radius:8px;padding:1.1rem 1.3rem;margin:0 0 2rem}div.decision>*:first-child{margin-top:0}div.decision>*:last-child{margin-bottom:0}details{border:1px solid #27272a;border-radius:8px;padding:.7rem 1rem;margin:1.4rem 0}details[open]{padding-bottom:1rem}summary{cursor:pointer;color:#a1a1aa;font-weight:600}summary:hover{color:#f4f4f5}</style><p>작성: 2026-08-02 · 실측 근거: <code>insights/videos/</code> 67개 노트, <code>~/.plaud-insight/processor.log</code>, <code>server/plaud/insight-processor.sh</code></p>
+<hr />
+<h2>결정 박스</h2>
+<table>
+<thead>
+<tr>
+<th>항목</th>
+<th>내용</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>질문 1</td>
+<td>MP3·영상 다운로드를 걷어내고 PLAUD 전용으로 축소할까?</td>
+</tr>
+<tr>
+<td>추천</td>
+<td><strong>YES — 다만 ffmpeg 분할 로직은 살려서 PLAUD 자동 분할에 재사용</strong></td>
+</tr>
+<tr>
+<td>질문 2</td>
+<td>인사이트가 학습자료로 모이고 다시 꺼내 쓸 수 있는 상태인가?</td>
+</tr>
+<tr>
+<td>답</td>
+<td><strong>모으는 것은 잘 되고 있다. 꺼내 쓰는 구조는 아직 없다.</strong></td>
+</tr>
+<tr>
+<td>가장 큰 문제</td>
+<td>67개 노트에 담긴 제안 67건 중 <strong>실행/기각이 기록된 것 0건</strong>. 분류 필드도 죽어 있다 (category 67/67 동일, confidence 67/67 동일)</td>
+</tr>
+<tr>
+<td>승인 시</td>
+<td>PLAUD 전용 축소 + 5시간 자동 분할 → 그다음 라운드에서 회수(리뷰) 구조</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h1>1부. PLAUD 전용화</h1>
+<h2>지금 있는 것</h2>
+<table>
+<thead>
+<tr>
+<th>화면 버튼</th>
+<th>서버 엔드포인트</th>
+<th>민수 사용</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>PLAUD로 보내기</td>
+<td>(plaud 라우트)</td>
+<td><strong>유일하게 씀</strong></td>
+</tr>
+<tr>
+<td>MP3 다운로드</td>
+<td><code>/download</code></td>
+<td>안 씀</td>
+</tr>
+<tr>
+<td>영상 다운로드 (화질 선택)</td>
+<td><code>/download-video</code></td>
+<td>안 씀</td>
+</tr>
+<tr>
+<td>2~5분할</td>
+<td><code>/download-split</code></td>
+<td>안 씀</td>
+</tr>
+</tbody>
+</table>
+<h2>제거안</h2>
+<p><strong>지울 것</strong><br />
+- 서버: <code>/download</code>, <code>/download-video</code>, <code>/download-split</code>, <code>/file/:id/:part</code><br />
+- 확장: MP3 다운로드 버튼, 화질 선택 + 영상 다운로드, 2~5분할 버튼</p>
+<p><strong>남길 것</strong><br />
+- PLAUD로 보내기, 시작/끝 구간 입력, 진행률 표시, <code>/progress</code>, <code>/health</code><br />
+- 회의끝(<code>plaud-meeting</code>) 라우트 — 별개 기능이라 그대로 둔다</p>
+<p><strong>주의 — 지우면 안 되는 것</strong><br />
+<code>/download-split</code>의 ffmpeg 분할 로직은 지금 유일하게 검증된 분할 코드다. 엔드포인트는 없애되 <strong>분할 헬퍼 함수는 남겨 5시간 초과 자동 분할에 재사용</strong>한다. 그냥 통으로 지우면 1부 작업을 다시 짜야 한다.</p>
+<p><strong>부수 효과</strong>: 화면이 버튼 1개로 줄어 오작동 여지가 사라진다. <code>server.js</code>(현재 84KB)도 눈에 띄게 줄어든다.</p>
+<hr />
+<h1>2부. 옵시디언 인사이트 — 지금 실제로 벌어지는 일</h1>
+<h2>흐름 (자동, 사람 개입 0)</h2>
+<pre><code>PLAUD 전사 완료
+  → insight-processor.sh 자동 실행 (headless claude, 읽기 전용)
+  → insight-rules.md + situation-pack.md(민수 현재 상황) + 전사 읽음
+  → 노트 생성 → creator-os-vault/insights/videos/YYYY-MM-DD-슬러그.md
+  → 데일리 노트에 한 줄 링크 추가
+</code></pre>
+<p>노트 1장 구조: frontmatter(category/assets/confidence/source/status) · 전체 요약(민수 상황 렌즈) · 핵심 문장 3~5 · <strong>지금 제안 1액션+1질문</strong> · 대기 제안 2~3 · 실행 로그</p>
+<h2>실측 현황</h2>
+<table>
+<thead>
+<tr>
+<th>지표</th>
+<th>값</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>누적 노트</td>
+<td><strong>67개</strong></td>
+</tr>
+<tr>
+<td>기간</td>
+<td>2026-07-16 ~ 2026-08-02 (18일)</td>
+</tr>
+<tr>
+<td>처리 성공률</td>
+<td>최근 15건 연속 OK (로그 기준)</td>
+</tr>
+<tr>
+<td>데일리 노트 연결</td>
+<td>9일치 (나머지는 소급 배치라 의도적으로 스킵)</td>
+</tr>
+<tr>
+<td>노트 품질</td>
+<td>좋음 — 일반론이 아니라 민수 프로젝트에 실제로 연결됨</td>
+</tr>
+</tbody>
+</table>
+<h2>그런데 — 꺼내 쓸 수 있는 상태는 아니다</h2>
+<table>
+<thead>
+<tr>
+<th>문제</th>
+<th>실측</th>
+<th>의미</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>분류가 죽었다</td>
+<td><code>category</code> <strong>67/67 전부 "세계관"</strong></td>
+<td>카테고리로 걸러낼 수가 없다</td>
+</tr>
+<tr>
+<td>확신도가 죽었다</td>
+<td><code>confidence</code> <strong>67/67 전부 "상"</strong> · unsorted 0건</td>
+<td>게이트가 작동 안 함 (모델 과신 — 이미 알려진 문제)</td>
+</tr>
+<tr>
+<td>태그 없음</td>
+<td><code>assets</code>가 사실상 4가지 조합뿐</td>
+<td>필터 해상도 너무 낮음</td>
+</tr>
+<tr>
+<td>노트끼리 연결 없음</td>
+<td><code>[[링크]]</code> <strong>0개</strong></td>
+<td>그래프에서 전부 고립. 하나를 열어도 옆 노트로 못 감</td>
+</tr>
+<tr>
+<td>인덱스 없음</td>
+<td>MOC·목록 노트 <strong>없음</strong></td>
+<td>68개 파일이 평면으로 쌓임</td>
+</tr>
+<tr>
+<td><strong>실행 추적 0</strong></td>
+<td>실행 로그가 전부 <code>(아직 없음)</code> 플레이스홀더</td>
+<td><strong>제안 67건 중 실행도 기각도 기록된 게 없다</strong></td>
+</tr>
+</tbody>
+</table>
+<h3>이게 뜻하는 것</h3>
+<p>지금 구조는 <strong>"그날 데일리에서 한 번 보고 지나가는" 흐름</strong>이다. 3주 전 노트를 다시 만날 경로가 사실상 없다. 검색은 되지만, 검색은 "찾을 게 있다는 걸 이미 알 때"만 작동한다.</p>
+<p>민수 특성상 "쌓아두고 나중에 꺼내 보기"는 작동하지 않는다. <strong>밀어주는 구조가 있어야 자산이 된다.</strong> 지금은 자산이 아니라 로그다.</p>
+<h2>개선 의견 (우선순위)</h2>
+<ol>
+<li><strong>주간 회수 한 장</strong> — 매주 지난 7일 노트의 "지금 제안"만 모아 3개로 추려 데일리에 올린다. 하나만 한다면 이것. 67개를 다시 읽을 필요 없이 3개만 보면 된다.</li>
+<li><strong>기각도 한 동작으로</strong> — 안 할 제안은 <code>status: dropped</code>로 닫는다. 지금은 67건이 전부 미해결로 남아 심리적 부채만 쌓인다.</li>
+<li><strong>확신도·카테고리 게이트 재조정</strong> — 전부 "상/세계관"이면 필드가 없는 것과 같다. 카테고리 후보를 좁히고 "하" 판정 기준을 강화해야 unsorted가 살아난다.</li>
+<li><strong>노트 생성 시 [[링크]] 최소 1개 강제</strong> — 관련 기존 노트나 프로젝트 MOC로. 그래프에서 우연한 재발견이 생기는 지점이 여기다.</li>
+</ol>
+<p>1·2번이 "다시 꺼내 쓴다"의 핵심이고, 3·4번은 그 다음이다.</p>
+<hr />
+<h2>작업 순서 제안</h2>
+<table>
+<thead>
+<tr>
+<th>순서</th>
+<th>작업</th>
+<th>라운드</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>1</td>
+<td>PLAUD 전용 축소 (분할 헬퍼는 보존)</td>
+<td>1~2</td>
+</tr>
+<tr>
+<td>2</td>
+<td>5시간 초과 자동 분할 + transcript 병합</td>
+<td>4~6</td>
+</tr>
+<tr>
+<td>3</td>
+<td>인사이트 회수 구조 (주간 회수 + 기각 동작)</td>
+<td>2~3</td>
+</tr>
+<tr>
+<td>4</td>
+<td>확신도·카테고리 게이트 재조정 + 링크 강제</td>
+<td>1~2</td>
+</tr>
+</tbody>
+</table>
+<p>1·2를 먼저 끝내야 6시간 라이브가 통째로 들어가고, 그래야 3번의 회수 대상이 온전해진다.</p>
+
+</div>
+<script>
+/* 카톡 초안 복사 버튼: <div class="bubble" id="msg1">…</div> + <button onclick="copyMsg('msg1',this)">복사</button> */
+function copyMsg(id, btn){
+  var text=document.getElementById(id).innerText;
+  function ok(){ btn.textContent='복사됨'; btn.classList.add('done'); setTimeout(function(){btn.textContent='복사'; btn.classList.remove('done');},1800); }
+  if(navigator.clipboard&&navigator.clipboard.writeText){ navigator.clipboard.writeText(text).then(ok).catch(function(){fallback();}); } else { fallback(); }
+  function fallback(){ var ta=document.createElement('textarea'); ta.value=text; document.body.appendChild(ta); ta.select(); try{document.execCommand('copy'); ok();}catch(e){} document.body.removeChild(ta); }
+}
+</script>
+</body>
+</html>

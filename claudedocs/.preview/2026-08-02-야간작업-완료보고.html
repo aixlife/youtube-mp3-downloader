@@ -1,0 +1,253 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>밤새 한 일 — PLAUD 전용화 · 5시간 자동 분할 · 인사이트 회수</title>
+<style>
+/* 확인용 미리보기 공용 골격 — 수정하지 말고 그대로 복사 후 {{ }} 자리만 치환 */
+:root { color-scheme: dark; }
+* { margin:0; padding:0; box-sizing:border-box; }
+body { background:#101314; color:#e2e8e8; font-family:'Pretendard Variable',Pretendard,-apple-system,'Apple SD Gothic Neo','Noto Sans KR',sans-serif; line-height:1.7; word-break:keep-all; padding:48px 24px 96px; }
+.wrap { max-width:720px; margin:0 auto; }
+.eyebrow { font-size:13px; letter-spacing:.14em; color:#4a7fe8; font-weight:700; margin-bottom:10px; }
+h1 { font-size:24px; font-weight:800; margin-bottom:8px; }
+.sub { color:#93a3a3; font-size:14px; margin-bottom:32px; }
+h2 { font-size:17px; font-weight:800; margin:40px 0 12px; color:#edf3f2; padding-top:24px; border-top:1px solid #232a2c; }
+h2:first-of-type { border-top:none; padding-top:0; }
+p { font-size:14.5px; color:#c3cecd; margin-bottom:10px; }
+ul, ol { margin:0 0 12px 20px; font-size:14.5px; color:#c3cecd; }
+li { margin-bottom:5px; }
+.card { background:#161b1d; border:1px solid #232a2c; border-radius:14px; padding:18px 20px; margin:12px 0; }
+table { width:100%; border-collapse:collapse; font-size:13.5px; margin:14px 0; }
+th { text-align:left; color:#8fa0a0; font-weight:700; padding:8px 10px; border-bottom:1px solid #2a3234; white-space:nowrap; }
+td { padding:9px 10px; border-bottom:1px solid #1d2426; vertical-align:top; }
+.note { margin-top:10px; font-size:12.5px; color:#6d7d7c; }
+/* 카톡 초안 버블 (필요 시 사용) */
+.kakao { background:#bacee0; border-radius:16px; padding:22px 18px; margin-top:14px; }
+.sender { font-size:12px; color:#4a5a68; margin-bottom:6px; font-weight:600; }
+.bubble { background:#ffffff; color:#111; border-radius:4px 14px 14px 14px; padding:14px 16px; font-size:14.5px; line-height:1.65; white-space:pre-wrap; box-shadow:0 1px 2px rgba(0,0,0,.15); }
+.btnrow { display:flex; gap:10px; margin-top:14px; }
+button { flex:1; background:#4a7fe8; color:#0b1018; border:none; border-radius:10px; padding:12px 0; font-size:14.5px; font-weight:800; cursor:pointer; font-family:inherit; }
+button:active { transform:translateY(1px); }
+button.done { background:#8fce8f; }
+</style>
+</head>
+<body>
+<div class="wrap">
+<div class="eyebrow">문서</div>
+<h1>밤새 한 일 — PLAUD 전용화 · 5시간 자동 분할 · 인사이트 회수</h1>
+<p class="sub">2026-08-02-야간작업-완료보고.md</p>
+
+<style>div.decision{border:1px solid #3f3f46;border-left:3px solid #56B4E9;background:#18181b;border-radius:8px;padding:1.1rem 1.3rem;margin:0 0 2rem}div.decision>*:first-child{margin-top:0}div.decision>*:last-child{margin-bottom:0}details{border:1px solid #27272a;border-radius:8px;padding:.7rem 1rem;margin:1.4rem 0}details[open]{padding-bottom:1rem}summary{cursor:pointer;color:#a1a1aa;font-weight:600}summary:hover{color:#f4f4f5}</style><p>작업: 2026-08-02 새벽 · 브랜치 <code>feature/plaud-only-autosplit</code> · 커밋 <code>b64e9e9</code></p>
+<hr />
+<h2>한 줄 결론</h2>
+<p><strong>6시간 라이브를 이제 그냥 "PLAUD로 보내기" 누르면 됩니다.</strong> 알아서 나눠 올리고, 전사를 다시 하나로 합쳐서 인사이트 노트를 만듭니다. 구간을 잘라 두 번 보낼 필요가 없어졌습니다.</p>
+<table>
+<thead>
+<tr>
+<th>요청한 것</th>
+<th>상태</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>실패 로그 확인</td>
+<td>완료 — 용량이 아니라 <strong>시간 초과</strong>였음 (6시간 13분)</td>
+</tr>
+<tr>
+<td>500MB / 5시간 대응</td>
+<td>완료 — 5시간은 자동 분할, 500MB는 모노 압축</td>
+</tr>
+<tr>
+<td>PLAUD 전용으로 축소</td>
+<td>완료 — 서버 2259→1674줄, 버튼 1개</td>
+</tr>
+<tr>
+<td>옵시디언 인사이트 현황</td>
+<td>완료 — 아래 2부</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h1>1부. 무엇이 바뀌었나</h1>
+<h2>이제 이렇게 동작합니다</h2>
+<pre><code>PLAUD로 보내기
+  ├─ 5시간 이하 &amp; 480MB 이하 → 지금까지와 동일 (재인코딩 없음)
+  ├─ 5시간 이하 &amp; 용량 초과   → 모노 64kbps 압축 후 업로드
+  └─ 5시간 초과              → 자동으로 N개 파트로 분할
+                              → 파트별 순차 업로드
+                              → 파트별 전사를 하나로 병합
+                              → 병합본으로 인사이트 노트 1개 생성
+</code></pre>
+<h2>음질에 대한 정직한 답</h2>
+<ul>
+<li><strong>분할은 손실이 0입니다.</strong> 스트림 복사(<code>-c copy</code>)라 재인코딩을 하지 않습니다.</li>
+<li><strong>압축만 손실이 있습니다.</strong> 다만 이건 5시간 안인데 480MB를 넘는 드문 경우에만 발동하고, PLAUD는 전사용이라 전사 품질에는 영향이 없습니다(STT 엔진은 어차피 모노로 다운믹스합니다).</li>
+<li>실측: 15분 강의 음성 기준 원본 13.95MB → 모노 64kbps 7.14MB. 6시간이면 약 360MB → 약 180MB.</li>
+</ul>
+<h2>말이 잘리지 않게</h2>
+<p>균등 분할 지점 그대로 자르면 문장 한가운데서 끊겨 그 문장이 양쪽 파트 모두에서 깨집니다. 그래서 <strong>균등 지점 ±90초 안에서 가장 긴 무음을 찾아 그 중앙에서</strong> 자릅니다.</p>
+<p>실제 강의 음성 검증: 목표 지점에서 2.5초 무음을 찾아 424초 지점에서 절단 → 파트1 끝 "…진행하면 될 것 같아"에서 파트2 시작 "진행하면 될 것 같아라고 요청을 한번 해보고요"로 자연스럽게 이어짐.</p>
+<h2>없앤 것</h2>
+<table>
+<thead>
+<tr>
+<th>없앤 것</th>
+<th>남긴 것</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>MP3 다운로드 버튼</td>
+<td>PLAUD로 보내기</td>
+</tr>
+<tr>
+<td>화질 선택 + 영상 다운로드</td>
+<td>시작/끝 구간 입력</td>
+</tr>
+<tr>
+<td>2~5분할 버튼</td>
+<td>진행률 (분할 시 파트 표시)</td>
+</tr>
+<tr>
+<td>서버 <code>/download</code>, <code>/download-video</code>, <code>/download-split</code>, <code>/file</code></td>
+<td>회의끝(<code>plaud-meeting</code>) 기능 그대로</td>
+</tr>
+</tbody>
+</table>
+<p>분할 버튼의 ffmpeg 로직은 버리지 않고 <code>audio-split.js</code>로 옮겨 자동 분할에 재사용했습니다.</p>
+<hr />
+<h1>2부. 옵시디언 인사이트 — 물어보신 것에 대한 답</h1>
+<h2>"학습자료로 모이고 있나?" → 모이는 건 아주 잘 되고 있었습니다</h2>
+<ul>
+<li>18일간(7/16~8/2) <strong>67개</strong> 자동 생성, 최근 15건 연속 성공</li>
+<li>노트 품질도 좋습니다 — 일반론이 아니라 실제 민수 프로젝트에 연결돼 있습니다</li>
+<li>분류도 살아 있습니다: 실행기법 51 / 세계관 7 / 수익화사례 6 / 콘텐츠전략 2 / 오퍼공식 1</li>
+</ul>
+<blockquote>
+<p>참고: 어제 대화에서 "category가 67개 전부 세계관"이라고 말씀드렸던 건 제 집계 오류(<code>uniq</code>의 한글 처리 문제)였습니다. 다시 세니 위와 같이 정상이었습니다.</p>
+</blockquote>
+<h2>"다시 꺼내 쓸 수 있나?" → <strong>이게 안 되고 있었습니다</strong></h2>
+<table>
+<thead>
+<tr>
+<th>문제</th>
+<th>실측</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>제안이 닫히지 않음</strong></td>
+<td>제안 67건 중 실행/기각이 기록된 게 <strong>0건</strong>. status 67건 전부 active</td>
+</tr>
+<tr>
+<td><strong>노트가 고립됨</strong></td>
+<td>노트 간 <code>[[링크]]</code> <strong>0개</strong> — 하나를 열어도 옆 노트로 갈 수 없음</td>
+</tr>
+<tr>
+<td><strong>확신도 게이트 죽음</strong></td>
+<td>확신도 '하' 0건, unsorted 0건 — 18일간 한 번도 안 걸러짐</td>
+</tr>
+<tr>
+<td><strong>태그 파편화</strong></td>
+<td><code>[강의, 채널]</code>과 <code>[채널, 강의]</code>가 별개로 세어져 33가지로 흩어짐</td>
+</tr>
+</tbody>
+</table>
+<p><strong>즉 자산이 아니라 로그였습니다.</strong> 그날 데일리에서 한 번 보고 지나가면 다시 만날 길이 없었습니다.</p>
+<h2>그래서 만든 것: 주간 회수</h2>
+<p>검색은 "찾을 게 있다는 걸 이미 알 때"만 작동합니다. 67개를 다시 열게 하는 대신 <strong>매주 3개를 데일리로 밀어 넣습니다.</strong></p>
+<p><strong>오늘 새벽 실제로 1회 돌렸고, 결과가 이미 데일리에 들어가 있습니다:</strong></p>
+<ol>
+<li>Claude Project 고정지침 패턴 → 김혜수 컨설팅 정리양식으로 변환 (8/3 착수 임박)</li>
+<li>claude-watch + Remotion 스킬로 쇼츠 벤치마킹 테스트 (유튜브 파이프라인)</li>
+<li>스크롤 월드 스킬 설치만 — 계정 연결·생성 없이 (라운지 팩토리 3호 스프린트)</li>
+</ol>
+<p>상황 팩을 읽고 이번 주 우선순위와 맞물리는 것만 골랐고, 자산도 컨설팅/채널/제품으로 분산했습니다. 넘긴 5건도 각각 이유를 남겼습니다.</p>
+<p><strong>아무 동작도 요구하지 않습니다.</strong> 14일 넘게 손 안 댄 노트는 자동으로 <code>stale</code>로 내려갑니다(삭제 아님, 회수 대상에서만 제외). 오늘 36건이 그렇게 정리돼 active가 67 → 31건이 됐습니다.</p>
+<ul>
+<li>자동 실행: <strong>매주 월요일 오전 8시</strong> (launchd 등록 완료)</li>
+<li>수동 실행: <code>~/Projects/youtube/server/plaud/insight-weekly-review.sh</code></li>
+</ul>
+<h2>닫는 경로도 만들었습니다</h2>
+<pre><code class="language-bash">insight-close.sh &quot;쇼핑쇼츠&quot; 실행함 &quot;claude-watch로 1개 분석 돌려봄&quot;
+insight-close.sh &quot;쇼핑쇼츠&quot; 기각   &quot;지금 채널 톤과 안 맞음&quot;
+insight-close.sh &quot;쇼핑쇼츠&quot; 보류
+</code></pre>
+<p>기각은 실패가 아닙니다. 닫히지 않은 채 쌓이는 게 문제였습니다.</p>
+<h2>규칙도 손봤습니다</h2>
+<ul>
+<li><strong>확신도</strong>를 '연결의 구체성' 눈금으로 재정의 — 파일·페이지·회차까지 지목 가능해야 '상'</li>
+<li><strong>assets 순서 고정</strong> — 강의 → 회사 → 채널 → 제품 → 컨설팅</li>
+<li><strong><code>## 연결</code> 섹션 필수</strong> — 기존 노트로 최소 1개 링크 (실제 존재하는 노트 목록을 프롬프트에 넣어줘서 지어내지 못하게)</li>
+<li>frontmatter 앞 빈 줄로 Obsidian 속성 인식이 깨지던 버그 수정 (기존 3건도 복구)</li>
+</ul>
+<hr />
+<h1>3부. 검증 결과</h1>
+<table>
+<thead>
+<tr>
+<th>항목</th>
+<th>결과</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>무음 탐지 타임스탬프 해석</td>
+<td>PASS — 합성 파일로 상대/절대 확인</td>
+</tr>
+<tr>
+<td>분할 무손실</td>
+<td>PASS — 3분할 후 길이 합 오차 0.03초, 크기 합 = 원본</td>
+</tr>
+<tr>
+<td>실제 강의 음성 무음 탐지</td>
+<td>PASS — 2.5초·8.2초 무음 발견, 0.4초 소요</td>
+</tr>
+<tr>
+<td>transcript 오프셋 보정</td>
+<td>PASS — 파트2가 <code>07:06</code>부터 시작, 마지막 <code>15:03</code>이 원본과 일치</td>
+</tr>
+<tr>
+<td><strong>분할 종단 (실제 PLAUD 업로드)</strong></td>
+<td><strong>PASS</strong> — 15분 영상을 한계 10분으로 낮춰 2분할 → 업로드 → 전사 → 병합 → 인사이트 생성까지 완주</td>
+</tr>
+<tr>
+<td>서버 부팅 + 엔드포인트</td>
+<td>PASS — 삭제한 4개 404, PLAUD 경로 정상</td>
+</tr>
+<tr>
+<td>주간 회수 실제 실행</td>
+<td>PASS — 8건 검토, 3건 선정, 36건 stale, 데일리 반영</td>
+</tr>
+<tr>
+<td>개정 규칙 적용</td>
+<td>PASS — 연결 링크 2개 생성, assets 순서 준수</td>
+</tr>
+</tbody>
+</table>
+<p><strong>아직 검증 못 한 것</strong>: 진짜 6시간 영상으로 5시간 한계를 실제로 넘는 종단 테스트. 한계값을 낮춰 분할 경로 전체를 통과시켜 검증했으므로 로직은 같지만, 실제 6시간 파일에서만 드러날 문제(다운로드 시간, PLAUD 쪽 대용량 처리)는 다음 실사용 때 확인됩니다.</p>
+<hr />
+<h1>4부. 아침에 확인하실 것</h1>
+<ol>
+<li><strong>데일리 노트</strong> — 주간 회수 3건이 들어가 있습니다. 파일을 열지 않아도 제목이 보입니다.</li>
+<li><strong>PLAUD 계정</strong> — 검증하느라 <code>1부 …</code> / <code>2부 …</code> 파일 2개가 올라가 있습니다. 지우셔도 됩니다.</li>
+<li><strong>확장 프로그램 새로고침</strong> — <code>chrome://extensions</code>에서 새로고침해야 새 UI(버튼 1개)가 보입니다.</li>
+<li><strong>되돌리고 싶으면</strong> — <code>git checkout main</code> 하면 이전 상태로 돌아갑니다. 브랜치는 <code>feature/plaud-only-autosplit</code>이고 아직 main에 병합하지 않았습니다.</li>
+</ol>
+<h2>남은 판단 하나</h2>
+<p>이 브랜치를 main에 병합할지는 민수님 확인 후에 하겠습니다. 실사용으로 6시간 영상 한 번 보내보시고 결정하시면 됩니다.</p>
+
+</div>
+<script>
+/* 카톡 초안 복사 버튼: <div class="bubble" id="msg1">…</div> + <button onclick="copyMsg('msg1',this)">복사</button> */
+function copyMsg(id, btn){
+  var text=document.getElementById(id).innerText;
+  function ok(){ btn.textContent='복사됨'; btn.classList.add('done'); setTimeout(function(){btn.textContent='복사'; btn.classList.remove('done');},1800); }
+  if(navigator.clipboard&&navigator.clipboard.writeText){ navigator.clipboard.writeText(text).then(ok).catch(function(){fallback();}); } else { fallback(); }
+  function fallback(){ var ta=document.createElement('textarea'); ta.value=text; document.body.appendChild(ta); ta.select(); try{document.execCommand('copy'); ok();}catch(e){} document.body.removeChild(ta); }
+}
+</script>
+</body>
+</html>

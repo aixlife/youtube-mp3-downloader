@@ -1,0 +1,239 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>PLAUD 전송 한계(5시간 / 500MB) 점검과 개선안</title>
+<style>
+/* 확인용 미리보기 공용 골격 — 수정하지 말고 그대로 복사 후 {{ }} 자리만 치환 */
+:root { color-scheme: dark; }
+* { margin:0; padding:0; box-sizing:border-box; }
+body { background:#101314; color:#e2e8e8; font-family:'Pretendard Variable',Pretendard,-apple-system,'Apple SD Gothic Neo','Noto Sans KR',sans-serif; line-height:1.7; word-break:keep-all; padding:48px 24px 96px; }
+.wrap { max-width:720px; margin:0 auto; }
+.eyebrow { font-size:13px; letter-spacing:.14em; color:#4a7fe8; font-weight:700; margin-bottom:10px; }
+h1 { font-size:24px; font-weight:800; margin-bottom:8px; }
+.sub { color:#93a3a3; font-size:14px; margin-bottom:32px; }
+h2 { font-size:17px; font-weight:800; margin:40px 0 12px; color:#edf3f2; padding-top:24px; border-top:1px solid #232a2c; }
+h2:first-of-type { border-top:none; padding-top:0; }
+p { font-size:14.5px; color:#c3cecd; margin-bottom:10px; }
+ul, ol { margin:0 0 12px 20px; font-size:14.5px; color:#c3cecd; }
+li { margin-bottom:5px; }
+.card { background:#161b1d; border:1px solid #232a2c; border-radius:14px; padding:18px 20px; margin:12px 0; }
+table { width:100%; border-collapse:collapse; font-size:13.5px; margin:14px 0; }
+th { text-align:left; color:#8fa0a0; font-weight:700; padding:8px 10px; border-bottom:1px solid #2a3234; white-space:nowrap; }
+td { padding:9px 10px; border-bottom:1px solid #1d2426; vertical-align:top; }
+.note { margin-top:10px; font-size:12.5px; color:#6d7d7c; }
+/* 카톡 초안 버블 (필요 시 사용) */
+.kakao { background:#bacee0; border-radius:16px; padding:22px 18px; margin-top:14px; }
+.sender { font-size:12px; color:#4a5a68; margin-bottom:6px; font-weight:600; }
+.bubble { background:#ffffff; color:#111; border-radius:4px 14px 14px 14px; padding:14px 16px; font-size:14.5px; line-height:1.65; white-space:pre-wrap; box-shadow:0 1px 2px rgba(0,0,0,.15); }
+.btnrow { display:flex; gap:10px; margin-top:14px; }
+button { flex:1; background:#4a7fe8; color:#0b1018; border:none; border-radius:10px; padding:12px 0; font-size:14.5px; font-weight:800; cursor:pointer; font-family:inherit; }
+button:active { transform:translateY(1px); }
+button.done { background:#8fce8f; }
+</style>
+</head>
+<body>
+<div class="wrap">
+<div class="eyebrow">문서</div>
+<h1>PLAUD 전송 한계(5시간 / 500MB) 점검과 개선안</h1>
+<p class="sub">plaud-limit-analysis-2026-08-02.md</p>
+
+<style>div.decision{border:1px solid #3f3f46;border-left:3px solid #56B4E9;background:#18181b;border-radius:8px;padding:1.1rem 1.3rem;margin:0 0 2rem}div.decision>*:first-child{margin-top:0}div.decision>*:last-child{margin-bottom:0}details{border:1px solid #27272a;border-radius:8px;padding:.7rem 1rem;margin:1.4rem 0}details[open]{padding-bottom:1rem}summary{cursor:pointer;color:#a1a1aa;font-weight:600}summary:hover{color:#f4f4f5}</style><p>작성: 2026-08-02 · 근거: <code>/tmp/yt-mp3-server.log</code>, <code>server/plaud/extension-upload.js</code>, <code>server/server.js</code></p>
+<hr />
+<h2>결정 박스</h2>
+<table>
+<thead>
+<tr>
+<th>항목</th>
+<th>내용</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>질문</td>
+<td>5시간·500MB 벽을 자동으로 넘기게 만들까?</td>
+</tr>
+<tr>
+<td>추천</td>
+<td><strong>YES — 단, "압축"이 아니라 "자동 분할"이 본 해결책</strong></td>
+</tr>
+<tr>
+<td>근거 1</td>
+<td>방금 실패는 용량이 아니라 <strong>시간 초과</strong>였다 (6시간 13분 → 서버가 사전 차단)</td>
+</tr>
+<tr>
+<td>근거 2</td>
+<td>5시간 제한은 압축으로 절대 못 넘는다. 시간 축 문제라 분할만 답</td>
+</tr>
+<tr>
+<td>근거 3</td>
+<td>PLAUD 경로는 이미 m4a 원본(약 129kbps)이라 5시간 안이면 용량 약 290MB — <strong>500MB는 거의 안 걸린다</strong></td>
+</tr>
+<tr>
+<td>가장 큰 반대 근거</td>
+<td>분할하면 transcript가 2개로 쪼개져 인사이트 후처리가 반쪽이 된다. 병합 로직을 같이 만들어야 실효</td>
+</tr>
+<tr>
+<td>승인 시</td>
+<td>5시간 초과 → 자동 N분할 순차 업로드 + transcript 병합 → 기존 인사이트 파이프라인에 단일 파일로 투입</td>
+</tr>
+<tr>
+<td>거절 시</td>
+<td>지금처럼 6시간 라이브는 매번 수동으로 구간 잘라 2번 보내야 함</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2>1. 실측한 사실</h2>
+<table>
+<thead>
+<tr>
+<th>항목</th>
+<th>값</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>실패한 job</td>
+<td><code>c80d06cc666c1559</code></td>
+</tr>
+<tr>
+<td>실패 메시지</td>
+<td>PLAUD Web import는 최대 5시간까지 지원합니다</td>
+</tr>
+<tr>
+<td>차단 위치</td>
+<td><code>server/plaud/extension-upload.js:473</code> (<code>segmentSeconds &gt; plaudMaxSeconds</code>)</td>
+</tr>
+<tr>
+<td>영상 길이</td>
+<td>22403초 = 6시간 13분 23초</td>
+</tr>
+<tr>
+<td>같은 영상 MP3 단일 다운로드</td>
+<td>512.8MB (192kbps 스테레오)</td>
+</tr>
+<tr>
+<td>같은 영상 2분할</td>
+<td>각 256.4MB</td>
+</tr>
+</tbody>
+</table>
+<p>즉 <strong>PLAUD 업로드는 시작도 못 했다.</strong> 서버가 5시간 룰로 먼저 막았다.</p>
+<h2>2. 용량 문제는 생각보다 작다</h2>
+<p>PLAUD 전송 경로는 재인코딩을 하지 않고 YouTube 원본 오디오를 그대로 쓴다.</p>
+<pre><code class="language-js">// extension-upload.js:40
+'-f', 'bestaudio[ext=m4a]/bestaudio',
+</code></pre>
+<p>512.8MB는 <strong>MP3 192kbps로 재인코딩하는 일반 다운로드 경로</strong>의 숫자지, PLAUD 경로 숫자가 아니다.</p>
+<table>
+<thead>
+<tr>
+<th>경로</th>
+<th>6시간 13분</th>
+<th>5시간(제한 상한)</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>MP3 192kbps 스테레오 (일반 다운로드)</td>
+<td>512.8MB (실측)</td>
+<td>약 432MB</td>
+</tr>
+<tr>
+<td>m4a 원본 약 129kbps (PLAUD 경로)</td>
+<td>약 361MB</td>
+<td><strong>약 290MB</strong></td>
+</tr>
+<tr>
+<td>모노 64kbps AAC</td>
+<td>약 172MB</td>
+<td>약 144MB</td>
+</tr>
+<tr>
+<td>모노 32kbps AAC</td>
+<td>약 86MB</td>
+<td>약 72MB</td>
+</tr>
+</tbody>
+</table>
+<p>결론: 5시간 룰을 지키면 PLAUD 경로 용량은 대개 290MB 선. 500MB에 닿으려면 원본이 256kbps급이어야 하는데 드물다. <strong>500MB 가드는 안전망이지 주 대책이 아니다.</strong></p>
+<h2>3. "음질 손실 없이"에 대한 정직한 답</h2>
+<ul>
+<li>재인코딩하면 손실은 <strong>반드시 생긴다.</strong> 무손실이라고 말하면 거짓말이다.</li>
+<li>그런데 PLAUD는 전사(STT)용이다. STT 엔진은 내부적으로 16kHz 모노로 다운샘플해서 처리한다. 음악 감상용 192kbps 스테레오는 전사 관점에서 완전한 낭비다.</li>
+<li>즉 <strong>"음질 손실 없이"가 아니라 "전사 품질 손실 없이"가 실제로 원하는 것</strong>이고, 그건 모노 64kbps로도 달성된다.</li>
+<li>게다가 아래 1순위 안은 재인코딩 자체를 안 한다(스트림 복사로 자르기) — 손실 0.</li>
+</ul>
+<h2>4. 제안 구조</h2>
+<p>PLAUD 전송 버튼을 누르면 서버가 스스로 판단:</p>
+<pre><code>duration 확인
+├─ 5시간 이하 &amp; 예상 500MB 이하 → 지금 그대로 (재인코딩 0, 가장 안전)
+├─ 5시간 이하 &amp; 500MB 초과      → 모노 64kbps AAC 재인코딩 후 업로드
+└─ 5시간 초과                    → 자동 N분할(파트당 4.5시간 이하) → 순차 업로드
+                                   → 파트별 transcript 수신 → 시간순 병합
+                                   → 병합본 1개를 insight-processor에 투입
+</code></pre>
+<h3>분할 경계 처리 (기본값으로 채택)</h3>
+<p>목표 지점 ±60초 안에서 <code>ffmpeg silencedetect</code>로 가장 긴 무음을 찾아 그 지점에서 자른다. 말 중간이 잘려 전사가 깨지는 걸 막는다. 무음이 없으면 균등 분할로 폴백.</p>
+<ul>
+<li>오버랩 방식(30초 겹치기)은 채택하지 않음 — 중복 문장이 인사이트 추출을 오염시킨다.</li>
+<li>자르기는 <code>-c copy</code> 스트림 복사 → 재인코딩 없음 → 음질 손실 0.</li>
+</ul>
+<h3>파트 제목</h3>
+<p><code>제목 (1/2)</code>, <code>제목 (2/2)</code> 형태. PLAUD 목록에서 식별 가능해야 병합 시 순서를 잡을 수 있다.</p>
+<h2>5. 숨은 비용 (여기가 진짜 작업량)</h2>
+<p>현재 인사이트 파이프라인은 단일 파일 전제다.</p>
+<pre><code class="language-js">// extension-upload.js:458
+spawnInsightProcessor(job.downloadPath, fileTitleFromJob(job), job.plaudFileId)
+</code></pre>
+<p>분할하면 <code>job.downloadPath</code>가 파트 수만큼 생긴다. 그대로 두면 6시간 라이브의 인사이트가 앞뒤 따로 반쪽씩 나온다.</p>
+<p>필요 작업: 파트 transcript 전부 수신 대기 → 시간 오프셋 보정해서 concat → 단일 transcript 파일 생성 → 그걸 insight-processor에 넘김.</p>
+<h2>6. 작업량 추정</h2>
+<table>
+<thead>
+<tr>
+<th>단계</th>
+<th>라운드</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>5시간 초과 자동 분할 + 순차 업로드</td>
+<td>2~3 라운드</td>
+</tr>
+<tr>
+<td>transcript 병합 + 인사이트 파이프라인 연결</td>
+<td>2~3 라운드</td>
+</tr>
+<tr>
+<td>500MB 초과 시 모노 64kbps 재인코딩 가드</td>
+<td>1 라운드</td>
+</tr>
+<tr>
+<td>실제 6시간 라이브로 종단 검증</td>
+<td>1 라운드 + PLAUD 전사 대기(외부 시계, 수십 분)</td>
+</tr>
+</tbody>
+</table>
+<p>미해결 시 에스컬레이션: PLAUD Web이 연속 업로드를 rate limit으로 막으면 파트 간 대기 삽입.</p>
+<h2>7. 우선순위 의견</h2>
+<ol>
+<li><strong>5시간 자동 분할 + transcript 병합</strong> — 실제로 막힌 것. 이것만 해도 문제가 사라진다.</li>
+<li><strong>500MB 재인코딩 가드</strong> — 안전망. 거의 발동 안 하지만 발동 시 확실히 살려준다.</li>
+<li>일반 다운로드 경로(MP3 192kbps)는 PLAUD와 무관하니 건드리지 않는다.</li>
+</ol>
+
+</div>
+<script>
+/* 카톡 초안 복사 버튼: <div class="bubble" id="msg1">…</div> + <button onclick="copyMsg('msg1',this)">복사</button> */
+function copyMsg(id, btn){
+  var text=document.getElementById(id).innerText;
+  function ok(){ btn.textContent='복사됨'; btn.classList.add('done'); setTimeout(function(){btn.textContent='복사'; btn.classList.remove('done');},1800); }
+  if(navigator.clipboard&&navigator.clipboard.writeText){ navigator.clipboard.writeText(text).then(ok).catch(function(){fallback();}); } else { fallback(); }
+  function fallback(){ var ta=document.createElement('textarea'); ta.value=text; document.body.appendChild(ta); ta.select(); try{document.execCommand('copy'); ok();}catch(e){} document.body.removeChild(ta); }
+}
+</script>
+</body>
+</html>
