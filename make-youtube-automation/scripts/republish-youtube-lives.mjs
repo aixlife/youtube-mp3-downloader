@@ -30,6 +30,7 @@ function parseArgs(argv) {
     cleanupDownloads: false,
     importOAuthClient: null,
     buildManifestByDates: null,
+    studioChannelName: null,
     cookieFile: path.join(os.tmpdir(), "make-youtube-edge-cookies.txt"),
     edgeExecutablePath: process.env.MAKE_YOUTUBE_EDGE_PATH || null,
     out: "manifest.local.json",
@@ -52,6 +53,7 @@ function parseArgs(argv) {
     else if (arg === "--build-manifest-by-dates") args.buildManifestByDates = argv[++i];
     else if (arg === "--cookie-file") args.cookieFile = argv[++i];
     else if (arg === "--edge-executable-path") args.edgeExecutablePath = argv[++i];
+    else if (arg === "--studio-channel-name") args.studioChannelName = argv[++i];
     else if (arg === "--out") args.out = argv[++i];
     else if (arg === "--limit") args.limit = Number(argv[++i]);
     else throw new Error(`Unknown argument: ${arg}`);
@@ -363,6 +365,24 @@ async function extractStudioDownloadLinks(args, items) {
     await context.addCookies(cookies);
     const page = await context.newPage();
 
+    // Studio의 /video/<id>/edit는 활성 채널 기준으로 해석된다. 계정에 채널이 여러 개면
+    // 활성 채널이 다른 채널로 바뀌어 있을 수 있고, 그때 편집 페이지는 권한 오류를 낸다.
+    // --studio-channel-name이 주어지면 먼저 해당 채널로 전환한다.
+    if (args.studioChannelName) {
+      await page.goto("https://www.youtube.com/channel_switcher", { waitUntil: "domcontentloaded", timeout: 90000 });
+      await page.waitForTimeout(8000);
+      const target = page
+        .locator(`a:has-text("${args.studioChannelName}"), yt-formatted-string:has-text("${args.studioChannelName}")`)
+        .first();
+      if (await target.count()) {
+        await target.click({ force: true, timeout: 15000 });
+        await page.waitForTimeout(9000);
+        console.log(`  switched channel: ${args.studioChannelName}`);
+      } else {
+        throw new Error(`Cannot find channel "${args.studioChannelName}" in the account's channel list.`);
+      }
+    }
+
     for (const item of items) {
       const videoId = videoIdFromItem(item);
       if (!videoId) throw new Error(`Cannot find source video id for ${item.title || item.sourceUrl}`);
@@ -381,7 +401,12 @@ async function extractStudioDownloadLinks(args, items) {
 
       const menuCount = await page.locator("#overflow-menu-button").count();
       if (menuCount !== 1) {
-        throw new Error(`Cannot find Studio overflow menu for ${videoId}. Current page: ${await page.title()} ${page.url()}`);
+        // 표면 증상은 항상 같지만 원인은 여러 개다(활성 채널 불일치 / 스로틀 / 권한).
+        // 페이지 본문을 함께 남겨야 어느 쪽인지 바로 갈린다.
+        const bodyText = (await page.locator("body").innerText()).replace(/\s+/g, " ").slice(0, 300);
+        throw new Error(
+          `Cannot find Studio overflow menu for ${videoId}. Page says: "${bodyText}" (${page.url()})`,
+        );
       }
 
       await page.locator("#overflow-menu-button").click({ force: true, timeout: 10000 });

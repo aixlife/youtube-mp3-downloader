@@ -31,6 +31,10 @@ const PREP_PATH = path.join(BATCH_DIR, 'prepared.json');
 const LOG_PATH = path.join(BATCH_DIR, 'studio-prep.log');
 
 const COOKIE_FILE = '/tmp/make-youtube-edge-cookies.txt';
+// Studio 편집 URL은 활성 채널 기준으로 해석되므로 채널을 명시해 전환시킨다.
+const STUDIO_CHANNEL_NAME = process.env.STUDIO_CHANNEL_NAME || '메이크패밀리';
+// Studio 페이지를 연속으로 두드리면 "Oops, something went wrong."으로 막힌다.
+const STUDIO_GAP_MS = Number(process.env.STUDIO_GAP_MS || 45_000);
 const PLAUD_QUEUE = path.join(os.homedir(), 'Movies', 'PlaudQueue', 'failed');
 const DOWNLOADS = path.join(AUTOMATION, 'downloads');
 
@@ -112,6 +116,7 @@ async function studioDownload(item) {
       '--extract-studio-links',
       '--download-studio',
       '--cookie-file', COOKIE_FILE,
+      '--studio-channel-name', STUDIO_CHANNEL_NAME,
     ], { cwd: AUTOMATION, timeout: 30 * 60 * 1000, maxBuffer: 32 * 1024 * 1024 });
   } finally {
     fs.rmSync(manifestPath, { force: true });
@@ -164,6 +169,10 @@ async function main() {
   let fail = 0;
 
   for (const [i, item] of targets.entries()) {
+    if (i > 0) {
+      log(`  Studio 간격 대기 ${Math.round(STUDIO_GAP_MS / 1000)}초`);
+      await new Promise((r) => setTimeout(r, STUDIO_GAP_MS));
+    }
     log(`[${i + 1}/${targets.length}] ${item.title.slice(0, 50)} (${Math.round(item.duration / 60)}분)`);
     let mp4;
     try {
