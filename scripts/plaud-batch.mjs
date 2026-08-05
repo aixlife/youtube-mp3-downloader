@@ -24,6 +24,7 @@ const ROOT = path.resolve(import.meta.dirname, '..');
 const BATCH_DIR = path.join(ROOT, 'plaud-batch');
 const QUEUE_PATH = path.join(BATCH_DIR, 'queue.json');
 const STATE_PATH = path.join(BATCH_DIR, 'state.json');
+const PREP_PATH = path.join(BATCH_DIR, 'prepared.json');
 const LOG_PATH = path.join(BATCH_DIR, 'batch.log');
 
 const SERVER = process.env.PLAUD_BATCH_SERVER || 'http://127.0.0.1:3456';
@@ -89,13 +90,19 @@ async function plaudTodaySeconds() {
   return { seconds: total, count };
 }
 
-async function submit(item) {
-  const res = await fetch(`${SERVER}/plaud/send`, {
+// 멤버십 영상은 studio-prep.mjs가 미리 오디오를 큐에 넣어 둔다.
+// 그런 항목은 다운로드를 건너뛰고 준비된 파일로 바로 업로드한다.
+async function submit(item, prepared) {
+  const prep = prepared[item.id];
+  const endpoint = prep ? '/plaud/retry-failed' : '/plaud/send';
+  const body = prep ? { filename: prep.queueFilename } : { url: item.url };
+
+  const res = await fetch(`${SERVER}${endpoint}`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ url: item.url }),
+    body: JSON.stringify(body),
   });
-  if (!res.ok) throw new Error(`send ${res.status}`);
+  if (!res.ok) throw new Error(`${endpoint} ${res.status}`);
   const { jobId } = await res.json();
   if (!jobId) throw new Error('jobId 없음');
   return jobId;
@@ -141,7 +148,20 @@ async function main() {
   state.failed ||= {};
   state.daily ||= {};
 
-  const pending = queue.filter((it) => !state.done[it.id] && (!TYPE_FILTER || it.type === TYPE_FILTER));
+  const prepared = loadJson(PREP_PATH, {});
+
+  // 멤버십 영상은 준비되기 전에는 어차피 다운로드가 실패하므로 큐에서 뺀다.
+  const knownMembersOnly = new Set(
+    Object.entries(state.failed).filter(([, v]) => /members/i.test(v.error || '')).map(([id]) => id),
+  );
+
+  const pending = queue.filter((it) => {
+    if (state.done[it.id]) return false;
+    if (TYPE_FILTER && it.type !== TYPE_FILTER) return false;
+    if (prepared[it.id]) return true;
+    if (knownMembersOnly.has(it.id)) return false;
+    return true;
+  });
   const doneCount = Object.keys(state.done).length;
   const doneSec = Object.values(state.done).reduce((a, d) => a + (d.duration || 0), 0);
   const pendingSec = pending.reduce((a, it) => a + it.duration, 0);
@@ -208,9 +228,10 @@ async function main() {
   let failCount = 0;
 
   for (const [i, item] of plan.entries()) {
-    log(`[${i + 1}/${plan.length}] ${item.title.slice(0, 50)} (${hhmm(item.duration)})`);
+    const tag = prepared[item.id] ? ' [준비됨]' : '';
+    log(`[${i + 1}/${plan.length}]${tag} ${item.title.slice(0, 50)} (${hhmm(item.duration)})`);
     try {
-      const jobId = await submit(item);
+      const jobId = await submit(item, prepared);
       const result = await waitForJob(jobId, item);
       if (result.ok) {
         state.done[item.id] = {
