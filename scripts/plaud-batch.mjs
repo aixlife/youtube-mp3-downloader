@@ -33,6 +33,9 @@ const DAILY_TOTAL_CAP_H = Number(process.env.DAILY_TOTAL_CAP_H || 21);
 const PLAUD_BIN = process.env.PLAUD_BIN || path.join(os.homedir(), '.local/bin/plaud');
 // 잡 폴링: 오디오 길이의 1/5 정도가 실측 소요. 여유 4배 + 하한 10분.
 const POLL_INTERVAL_MS = 15_000;
+// 연속 다운로드는 유튜브 연결 끊김(HTTPSConnection)을 부르고,
+// 직전 잡의 PLAUD 브라우저 컨텍스트가 정리될 시간도 필요하다.
+const ITEM_GAP_MS = Number(process.env.ITEM_GAP_MS || 30_000);
 const JOB_TIMEOUT_FACTOR = 0.8;
 const JOB_TIMEOUT_MIN_MS = 10 * 60 * 1000;
 
@@ -228,6 +231,7 @@ async function main() {
   let failCount = 0;
 
   for (const [i, item] of plan.entries()) {
+    if (i > 0) await new Promise((r) => setTimeout(r, ITEM_GAP_MS));
     const tag = prepared[item.id] ? ' [준비됨]' : '';
     log(`[${i + 1}/${plan.length}]${tag} ${item.title.slice(0, 50)} (${hhmm(item.duration)})`);
     try {
