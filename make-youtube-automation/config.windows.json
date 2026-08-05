@@ -1,0 +1,24 @@
+{
+  "downloadsDir": "downloads",
+  "runsDir": "runs",
+  "manifestsDir": "manifests",
+  "stateDir": "state",
+  "logsDir": "logs",
+  "ytDlp": "yt-dlp",
+  "cookiesFromBrowser": "edge:Default",
+  "cookieExportMode": "edge-cdp",
+  "edgeAutomationProfileDir": "edge-profile",
+  "closeEdgeForCookieExport": true,
+  "restoreEdgeAfterCookieExport": true,
+  "privacyStatus": "unlisted",
+  "categoryId": "27",
+  "copyThumbnail": true,
+  "notifySubscribers": false,
+  "selfDeclaredMadeForKids": false,
+  "keychain": {
+    "account": "make-youtube",
+    "oauthClientJsonService": "make-youtube-oauth-client-json",
+    "oauthTokenJsonService": "make-youtube-oauth-token-json",
+    "databaseUrlService": "make-youtube-database-url"
+  }
+}

@@ -1,0 +1,26 @@
+{
+  "name": "make-youtube-automation",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dry-run": "node scripts/republish-youtube-lives.mjs --manifest live-videos.example.json --dry-run",
+    "auth": "node scripts/republish-youtube-lives.mjs --auth",
+    "build-manifest": "node scripts/republish-youtube-lives.mjs --build-manifest-by-dates 2026-05-12,2026-05-19,2026-06-02,2026-06-09,2026-06-16,2026-06-23 --out manifest.local.json",
+    "download-studio": "node scripts/republish-youtube-lives.mjs --manifest manifest.local.json --extract-studio-links --download-studio --cookie-file /tmp/make-youtube-edge-cookies.txt",
+    "upload": "node scripts/republish-youtube-lives.mjs --manifest manifest.local.json --upload",
+    "upload-keep-files": "node scripts/republish-youtube-lives.mjs --manifest manifest.local.json --upload",
+    "apply-db": "node scripts/republish-youtube-lives.mjs --manifest manifest.local.json --apply-db",
+    "cleanup-downloads": "node scripts/republish-youtube-lives.mjs --manifest manifest.local.json --cleanup-downloads",
+    "scheduled": "node scripts/run-scheduled-live.mjs --config config.windows.json",
+    "doctor": "node scripts/run-scheduled-live.mjs --config config.windows.json --doctor",
+    "test": "node --test tests/*.test.mjs"
+  },
+  "dependencies": {
+    "@google-cloud/local-auth": "latest",
+    "@prisma/client": "6.19.2",
+    "googleapis": "latest",
+    "playwright-core": "latest",
+    "prisma": "6.19.2"
+  }
+}

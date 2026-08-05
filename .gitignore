@@ -6,3 +6,15 @@ node_modules/
 .env
 *.log
 *.err
+meeting-runs/
+dist/
+youtube-runs/
+make-youtube-automation/downloads/
+make-youtube-automation/runs/
+make-youtube-automation/manifests/
+make-youtube-automation/state/
+make-youtube-automation/logs/
+make-youtube-automation/windows-transfer/
+make-youtube-automation/*.local.json
+make-youtube-automation/*.secret-bundle.json
+make-youtube-automation/windows-public.xml

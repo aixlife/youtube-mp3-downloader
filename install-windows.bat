@@ -1,13 +1,13 @@
 @echo off
 chcp 65001 >nul
 :: ============================================
-::  YouTube MP3 Downloader - Windows 설치 스크립트
+::  YouTube MP3 + PLAUD Automation - Windows 설치 스크립트
 ::  이 파일을 관리자 권한으로 실행하면 모든 준비가 완료됩니다.
 :: ============================================
 
 echo.
 echo =========================================
-echo   YouTube MP3 Downloader 설치 시작 (Windows)
+echo   YouTube MP3 + PLAUD Automation 설치 시작 (Windows)
 echo =========================================
 echo.
 
@@ -95,7 +95,11 @@ if %ERRORLEVEL% equ 0 (
     echo   3. [압축해제된 확장 프로그램을 로드합니다] 클릭
     echo   4. 이 폴더 안의 extension 폴더 선택:
     echo      %~dp0extension
-    echo   5. YouTube 영상 열면 아래에 MP3 다운로드 바 표시!
+    echo   5. YouTube 영상 열면 아래에 MP3 / PLAUD 버튼 표시!
+    echo.
+    echo   PLAUD 사용 전 참고:
+    echo   - 처음 PLAUD로 보내기 실행 시 자동 브라우저가 열립니다.
+    echo   - 그 창에서 PLAUD에 로그인한 뒤 다시 실행하면 됩니다.
     echo.
 ) else (
     echo.

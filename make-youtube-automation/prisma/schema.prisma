@@ -1,0 +1,44 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Course {
+  id           Int      @id @default(autoincrement())
+  title        String
+  description  String?
+  category     String?
+  isFree       Boolean  @default(false) @map("is_free")
+  sortOrder    Int      @default(0) @map("sort_order")
+  notionPageId String?  @map("notion_page_id")
+  createdAt    DateTime @default(now()) @map("created_at")
+  lessons      Lesson[]
+
+  @@map("courses")
+}
+
+model Lesson {
+  id          Int        @id @default(autoincrement())
+  courseId    Int        @map("course_id")
+  course      Course     @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  title       String
+  description String?
+  type        LessonType
+  youtubeUrl  String?    @map("youtube_url")
+  pdfPath     String?    @map("pdf_path")
+  notionHtml  String?    @db.Text @map("notion_html")
+  videoUrl    String?    @map("video_url")
+  isFree      Boolean    @default(false) @map("is_free")
+  sortOrder   Int        @default(0) @map("sort_order")
+
+  @@map("lessons")
+}
+
+enum LessonType {
+  VIDEO
+  PDF
+}

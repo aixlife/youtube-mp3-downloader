@@ -1,0 +1,215 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>라이브 다시보기 자동화 — Windows 무인화 점검</title>
+<style>
+/* 확인용 미리보기 공용 골격 — 수정하지 말고 그대로 복사 후 {{ }} 자리만 치환 */
+:root { color-scheme: dark; }
+* { margin:0; padding:0; box-sizing:border-box; }
+body { background:#101314; color:#e2e8e8; font-family:'Pretendard Variable',Pretendard,-apple-system,'Apple SD Gothic Neo','Noto Sans KR',sans-serif; line-height:1.7; word-break:keep-all; padding:48px 24px 96px; }
+.wrap { max-width:720px; margin:0 auto; }
+.eyebrow { font-size:13px; letter-spacing:.14em; color:#4a7fe8; font-weight:700; margin-bottom:10px; }
+h1 { font-size:24px; font-weight:800; margin-bottom:8px; }
+.sub { color:#93a3a3; font-size:14px; margin-bottom:32px; }
+h2 { font-size:17px; font-weight:800; margin:40px 0 12px; color:#edf3f2; padding-top:24px; border-top:1px solid #232a2c; }
+h2:first-of-type { border-top:none; padding-top:0; }
+p { font-size:14.5px; color:#c3cecd; margin-bottom:10px; }
+ul, ol { margin:0 0 12px 20px; font-size:14.5px; color:#c3cecd; }
+li { margin-bottom:5px; }
+.card { background:#161b1d; border:1px solid #232a2c; border-radius:14px; padding:18px 20px; margin:12px 0; }
+table { width:100%; border-collapse:collapse; font-size:13.5px; margin:14px 0; }
+th { text-align:left; color:#8fa0a0; font-weight:700; padding:8px 10px; border-bottom:1px solid #2a3234; white-space:nowrap; }
+td { padding:9px 10px; border-bottom:1px solid #1d2426; vertical-align:top; }
+.note { margin-top:10px; font-size:12.5px; color:#6d7d7c; }
+/* 카톡 초안 버블 (필요 시 사용) */
+.kakao { background:#bacee0; border-radius:16px; padding:22px 18px; margin-top:14px; }
+.sender { font-size:12px; color:#4a5a68; margin-bottom:6px; font-weight:600; }
+.bubble { background:#ffffff; color:#111; border-radius:4px 14px 14px 14px; padding:14px 16px; font-size:14.5px; line-height:1.65; white-space:pre-wrap; box-shadow:0 1px 2px rgba(0,0,0,.15); }
+.btnrow { display:flex; gap:10px; margin-top:14px; }
+button { flex:1; background:#4a7fe8; color:#0b1018; border:none; border-radius:10px; padding:12px 0; font-size:14.5px; font-weight:800; cursor:pointer; font-family:inherit; }
+button:active { transform:translateY(1px); }
+button.done { background:#8fce8f; }
+</style>
+</head>
+<body>
+<div class="wrap">
+<div class="eyebrow">문서</div>
+<h1>라이브 다시보기 자동화 — Windows 무인화 점검</h1>
+<p class="sub">2026-08-05-라이브-자동화-윈도우-점검.md</p>
+
+<style>div.decision{border:1px solid #3f3f46;border-left:3px solid #56B4E9;background:#18181b;border-radius:8px;padding:1.1rem 1.3rem;margin:0 0 2rem}div.decision>*:first-child{margin-top:0}div.decision>*:last-child{margin-bottom:0}details{border:1px solid #27272a;border-radius:8px;padding:.7rem 1rem;margin:1.4rem 0}details[open]{padding-bottom:1rem}summary{cursor:pointer;color:#a1a1aa;font-weight:600}summary:hover{color:#f4f4f5}</style><p>작성: 2026-08-05 03:50 · 대상: 24시간 Windows PC <code>AIXLIFE</code> (likim@100.95.243.74)</p>
+<hr />
+<h2>결정 박스</h2>
+<table>
+<thead>
+<tr>
+<th>항목</th>
+<th>내용</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>질문</strong></td>
+<td>Windows 무인 자동화를 완성할까요?</td>
+</tr>
+<tr>
+<td><strong>추천</strong></td>
+<td><strong>YES — 단, 민수님 액션 2건이 선행 필요</strong></td>
+</tr>
+<tr>
+<td><strong>핵심 근거 1</strong></td>
+<td>Codex가 막혔던 SSH는 키 문제였고, 지금 정상 연결됨</td>
+</tr>
+<tr>
+<td><strong>핵심 근거 2</strong></td>
+<td>3주간 실패의 진짜 원인(죽은 OAuth 토큰)을 찾아 복구 완료. 러너가 끝까지 완주함</td>
+</tr>
+<tr>
+<td><strong>핵심 근거 3</strong></td>
+<td>실패를 3주간 숨긴 로깅 버그도 수정·검증 완료</td>
+</tr>
+<tr>
+<td><strong>가장 큰 반대 근거</strong></td>
+<td><strong>이 자동화는 7/15 설치 이후 단 한 번도 성공한 적이 없습니다.</strong> 남은 관문(Edge 로그인)은 브라우저 쿠키에 의존해서, 쿠키가 만료되면 또 멈춥니다</td>
+</tr>
+<tr>
+<td><strong>승인 시</strong></td>
+<td>민수님 액션 2건 → 제가 스케줄·채널 가드 적용 → 실제 1편으로 종단 검증</td>
+</tr>
+<tr>
+<td><strong>거절 시</strong></td>
+<td>지금처럼 밀릴 때마다 수동 처리 (이번처럼 7편씩)</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2>이번에 실제로 고친 것</h2>
+<table>
+<thead>
+<tr>
+<th>#</th>
+<th>문제</th>
+<th>상태</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>1</td>
+<td>Codex가 SSH 공개키 인증 거부로 중단</td>
+<td><strong>해결</strong> — 키가 틀렸을 뿐. <code>~/.aimax-ops/aixlife_win_key</code> 로 정상 접속</td>
+</tr>
+<tr>
+<td>2</td>
+<td>7/17~7/31 모든 실행이 <code>discovering</code>에서 즉사</td>
+<td><strong>해결</strong> — 원인은 Windows OAuth 리프레시 토큰 <code>invalid_grant</code></td>
+</tr>
+<tr>
+<td>3</td>
+<td>Windows 자격증명 3종이 죽은 상태</td>
+<td><strong>해결</strong> — Mac의 유효한 메이크패밀리 토큰을 암호화 번들로 재이관 (DPAPI)</td>
+</tr>
+<tr>
+<td>4</td>
+<td>실패 원인이 로그에 안 남음</td>
+<td><strong>해결</strong> — <code>$ErrorActionPreference="Stop"</code> + <code>2&gt;&amp;1</code> 조합이 첫 stderr에서 파이프라인을 끊어 원인을 통째로 삼키고 있었음</td>
+</tr>
+<tr>
+<td>5</td>
+<td>로그 인코딩 깨짐(UTF-16 혼입)</td>
+<td><strong>해결</strong> — 전 구간 UTF-8 통일</td>
+</tr>
+<tr>
+<td>6</td>
+<td>Windows 코드가 구버전일 가능성</td>
+<td><strong>문제 없음</strong> — 핵심 파일 4개 해시가 Mac 최신본과 일치</td>
+</tr>
+</tbody>
+</table>
+<p>검증: Windows에서 러너를 실제 실행 → OAuth·라운지 DB·영상 탐색 전 구간 통과, <code>exit=0</code>, 로그 정상 기록.</p>
+<pre><code>[2026-08-05T03:49:06] slot=manual start
+Already complete: 2026-08-04 ai https://youtu.be/Vmd-53c-VbA
+[2026-08-05T03:49:06] exit=0
+</code></pre>
+<hr />
+<h2>남은 관문 — 민수님 액션 2건</h2>
+<h3>액션 1. Windows PC에서 전용 Edge 프로필에 YouTube 로그인 (필수, 약 2분)</h3>
+<p>자동화는 YouTube Studio에서 원본을 내려받기 위해 <strong>전용 Edge 프로필</strong>을 씁니다.<br />
+그 프로필의 구글 쿠키가 <strong>0개</strong>라 다운로드 단계에서 멈춥니다.</p>
+<p>기존 설계는 "평소 쓰는 Edge의 쿠키를 전용 프로필로 복사"였는데, <strong>지금은 이 방식이 원천적으로 불가능합니다.</strong><br />
+Edge가 쿠키를 App-Bound 암호화로 잠가서 다른 프로필로 옮기면 복호화가 안 됩니다.<br />
+(<code>yt-dlp</code> 우회 경로도 같은 이유로 실패 — yt-dlp 이슈 #10927에서 확인)</p>
+<p>즉 <strong>전용 프로필에서 직접 한 번 로그인</strong>하는 것 외에 방법이 없습니다.</p>
+<p>Windows PC에서 아래를 실행하고, 열리는 창에서 <strong>메이크패밀리 채널 계정</strong>으로 로그인해 주세요.</p>
+<pre><code>&quot;C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe&quot; --user-data-dir=&quot;C:\Users\likim\AppData\Local\AIMAX\LiveReplay\edge-profile&quot; --profile-directory=Default https://studio.youtube.com
+</code></pre>
+<p>Studio 화면이 정상적으로 보이면 창을 닫으시면 됩니다. 나머지는 제가 검증합니다.</p>
+<blockquote>
+<p>주의: 이 쿠키는 영구가 아닙니다. 만료되면 같은 로그인을 다시 해야 합니다.<br />
+이게 이 자동화의 구조적 약점입니다.</p>
+</blockquote>
+<h3>액션 2. Google Cloud Console에서 OAuth 앱을 Production으로 전환 (권장)</h3>
+<p>이번 <code>invalid_grant</code>의 유력한 원인입니다.</p>
+<p>이 프로젝트 README 기준 OAuth 동의화면이 <strong>Testing</strong> 상태인데,<br />
+<strong>Testing 앱의 리프레시 토큰은 구글 정책상 7일 뒤 자동 만료</strong>됩니다.<br />
+이대로 두면 오늘 넣은 토큰도 <strong>다음 주에 또 죽습니다.</strong></p>
+<ul>
+<li>Google Cloud Console → 해당 프로젝트(<code>dynamic-camp-491500-d6</code>) → OAuth consent screen</li>
+<li>Publishing status가 <code>Testing</code>이면 → <strong>PUBLISH APP</strong> → In production</li>
+<li><code>youtube.upload</code>은 sensitive scope라 "미인증 앱" 경고 화면은 남지만, 7일 만료는 사라집니다</li>
+</ul>
+<p><strong>확인만 해주셔도 됩니다</strong> — 이미 Production이면 원인은 다른 것이고, 제가 다시 추적하겠습니다.</p>
+<hr />
+<h2>액션 이후 제가 할 일 (승인 주시면 진행)</h2>
+<table>
+<thead>
+<tr>
+<th>#</th>
+<th>작업</th>
+<th>비고</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>1</td>
+<td>종단 검증</td>
+<td>실제 1편을 처음부터 끝까지 돌려 Studio 다운로드까지 통과 확인</td>
+</tr>
+<tr>
+<td>2</td>
+<td>스케줄 조정</td>
+<td>현재 수·금 10:00 / 14:00 → <strong>수·금 03:10 / 05:10 / 10:10</strong> (Codex 제안)</td>
+</tr>
+<tr>
+<td>3</td>
+<td>채널 가드 추가</td>
+<td>업로드 직전 채널이 <code>메이크패밀리(UCfLllxOn8hbOqwVFYw5L-PQ)</code>가 아니면 즉시 중단. 오늘 ASCM 오업로드 재발 방지</td>
+</tr>
+<tr>
+<td>4</td>
+<td>실패 알림</td>
+<td>오전까지 성공 기록이 없으면 알림. 지금은 3주를 조용히 실패했음</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2>참고 — 지금 상태 요약</h2>
+<ul>
+<li>라운지 등록: 8/4까지 전부 완료 (Codex가 어제 7편 재업로드·링크 교체 완료)</li>
+<li>Windows 스케줄러: <code>AIMAX-Live-Replay-Primary</code> / <code>-Retry</code> 등록되어 있음, 다음 실행 8/5 10:00</li>
+<li><strong>주의</strong>: 액션 1 전까지는 스케줄이 돌아도 다운로드 단계에서 멈춥니다 (단, 이제는 로그에 원인이 남습니다)</li>
+</ul>
+
+</div>
+<script>
+/* 카톡 초안 복사 버튼: <div class="bubble" id="msg1">…</div> + <button onclick="copyMsg('msg1',this)">복사</button> */
+function copyMsg(id, btn){
+  var text=document.getElementById(id).innerText;
+  function ok(){ btn.textContent='복사됨'; btn.classList.add('done'); setTimeout(function(){btn.textContent='복사'; btn.classList.remove('done');},1800); }
+  if(navigator.clipboard&&navigator.clipboard.writeText){ navigator.clipboard.writeText(text).then(ok).catch(function(){fallback();}); } else { fallback(); }
+  function fallback(){ var ta=document.createElement('textarea'); ta.value=text; document.body.appendChild(ta); ta.select(); try{document.execCommand('copy'); ok();}catch(e){} document.body.removeChild(ta); }
+}
+</script>
+</body>
+</html>
