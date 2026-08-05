@@ -18,3 +18,6 @@ make-youtube-automation/windows-transfer/
 make-youtube-automation/*.local.json
 make-youtube-automation/*.secret-bundle.json
 make-youtube-automation/windows-public.xml
+plaud-batch/*.out
+plaud-batch/batch.log
+plaud-batch/state.json
