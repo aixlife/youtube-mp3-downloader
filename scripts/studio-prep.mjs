@@ -23,19 +23,24 @@ import { promisify } from 'node:util';
 const execFileAsync = promisify(execFile);
 
 const ROOT = path.resolve(import.meta.dirname, '..');
-const AUTOMATION = path.join(ROOT, 'make-youtube-automation');
+// 윈도우에서는 자동화가 별도 위치(AIMAX\LiveReplay)에 설치돼 있다.
+const AUTOMATION = process.env.STUDIO_AUTOMATION_DIR || path.join(ROOT, 'make-youtube-automation');
 const BATCH_DIR = path.join(ROOT, 'plaud-batch');
 const QUEUE_PATH = path.join(BATCH_DIR, 'queue.json');
 const STATE_PATH = path.join(BATCH_DIR, 'state.json');
 const PREP_PATH = path.join(BATCH_DIR, 'prepared.json');
 const LOG_PATH = path.join(BATCH_DIR, 'studio-prep.log');
 
-const COOKIE_FILE = '/tmp/make-youtube-edge-cookies.txt';
+const COOKIE_FILE = process.env.STUDIO_COOKIE_FILE || '/tmp/make-youtube-edge-cookies.txt';
+// PLAUD 큐 위치도 기계마다 다르다.
+const PLAUD_QUEUE_FAILED = process.env.PLAUD_QUEUE_DIR
+  ? path.join(process.env.PLAUD_QUEUE_DIR, 'failed')
+  : null;
 // Studio 편집 URL은 활성 채널 기준으로 해석되므로 채널을 명시해 전환시킨다.
 const STUDIO_CHANNEL_NAME = process.env.STUDIO_CHANNEL_NAME || '메이크패밀리';
 // Studio 페이지를 연속으로 두드리면 "Oops, something went wrong."으로 막힌다.
 const STUDIO_GAP_MS = Number(process.env.STUDIO_GAP_MS || 45_000);
-const PLAUD_QUEUE = path.join(os.homedir(), 'Movies', 'PlaudQueue', 'failed');
+const PLAUD_QUEUE = PLAUD_QUEUE_FAILED || path.join(os.homedir(), 'Movies', 'PlaudQueue', 'failed');
 const DOWNLOADS = path.join(AUTOMATION, 'downloads');
 
 const args = process.argv.slice(2);

@@ -41,7 +41,9 @@ const ITEM_GAP_MS = Number(process.env.ITEM_GAP_MS || 30_000);
 const ENV_FAILURE_LIMIT = Number(process.env.ENV_FAILURE_LIMIT || 3);
 const ENV_FAILURE_PATTERN = /ProcessSingleton|launchPersistentContext|fetch failed|ECONNREFUSED/i;
 const JOB_TIMEOUT_FACTOR = 0.8;
-const JOB_TIMEOUT_MIN_MS = 10 * 60 * 1000;
+// 짧은 영상도 업로드+전사 생성에 10분을 넘길 수 있다(2026-08-12 9분 영상 실패).
+// PLAUD 클라우드 대기 시간은 영상 길이에 비례하지 않으므로 하한을 넉넉히 둔다.
+const JOB_TIMEOUT_MIN_MS = Number(process.env.JOB_TIMEOUT_MIN_MS || 20 * 60 * 1000);
 
 const args = process.argv.slice(2);
 const hasFlag = (f) => args.includes(f);
@@ -74,19 +76,26 @@ function todayKey() {
 
 function loadJson(file, fallback) {
   if (!fs.existsSync(file)) return fallback;
-  return JSON.parse(fs.readFileSync(file, 'utf8'));
+  // PowerShell 5.1의 Set-Content -Encoding utf8은 BOM을 붙인다. JSON.parse는 그걸 못 읽는다.
+  return JSON.parse(fs.readFileSync(file, 'utf8').replace(/^﻿/, ''));
 }
 
 function saveState(state) {
   fs.writeFileSync(STATE_PATH, JSON.stringify(state, null, 1));
 }
 
-// `plaud today` 출력에서 당일 총 사용 초를 합산한다.
+// PLAUD 사용량을 최근 24시간 롤링 창으로 합산한다.
+//
+// `plaud today`를 쓰지 않는 이유: PLAUD 기록은 UTC로 찍히는데 `today`는 로컬 날짜와
+// 비교해서, KST 자정~오전 9시 사이에는 방금 올린 것도 못 보고 0을 돌려준다(2026-08-12 실측).
+// 그 창에서 가드가 눈이 멀면 민수 녹음 몫까지 배치가 먹는다.
+// `recent -d 1`은 시간대와 무관하게 최근 24시간을 주므로 보수적이고 안전하다.
+//
 // 형식: "  <file_id>  <title>  <YYYY-MM-DD>  <1h02m03s>"
 async function plaudTodaySeconds() {
   // 윈도우의 plaud는 .cmd 래퍼라 shell 없이는 execFile로 실행되지 않는다.
-  const { stdout } = await execFileAsync(PLAUD_BIN, ['today'], {
-    timeout: 120_000,
+  const { stdout } = await execFileAsync(PLAUD_BIN, ['recent', '-d', '1'], {
+    timeout: 180_000,
     shell: process.platform === 'win32',
   });
   let total = 0;
@@ -106,7 +115,9 @@ async function plaudTodaySeconds() {
 async function submit(item, prepared) {
   const prep = prepared[item.id];
   const endpoint = prep ? '/plaud/retry-failed' : '/plaud/send';
-  const body = prep ? { filename: prep.queueFilename } : { url: item.url };
+  // 제목을 함께 넘긴다. 서버가 yt-dlp 출력을 파싱하면 윈도우 콘솔 인코딩 때문에
+  // 한글이 깨져 PLAUD에 'audio 2' 같은 이름으로 올라간다.
+  const body = prep ? { filename: prep.queueFilename } : { url: item.url, title: item.title };
 
   const res = await fetch(`${SERVER}${endpoint}`, {
     method: 'POST',

@@ -1547,7 +1547,11 @@ async function closePlaudContext(context) {
 
 function getVideoInfo(url) {
   return new Promise((resolve, reject) => {
-    const proc = spawn('yt-dlp', [...COOKIES_ARGS, '--get-title', '--get-duration', '-s', url]);
+    // 윈도우 콘솔은 기본이 cp949라 제목의 한글이 깨진 채로 넘어온다.
+    // --encoding UTF-8 과 PYTHONIOENCODING 둘 다 걸어 출력 인코딩을 고정한다.
+    const proc = spawn('yt-dlp', [...COOKIES_ARGS, '--encoding', 'UTF-8', '--get-title', '--get-duration', '-s', url], {
+      env: { ...process.env, PYTHONIOENCODING: 'utf-8' },
+    });
     let stdout = '';
     let stderr = '';
     proc.stdout.on('data', (d) => { stdout += d.toString(); });

@@ -752,7 +752,9 @@ function createPlaudExtensionUpload(deps) {
         console.log(`[job:${job.id}] 길이 ${Math.round(segmentSeconds)}s > 한계 ${plaudMaxSeconds}s → 자동 분할 예정`);
       }
 
-      const baseTitle = safeFilename(info.title);
+      // 호출자가 제목을 알고 있으면 그걸 쓴다(배치 러너의 큐에는 정확한 원제가 있다).
+      // yt-dlp 출력 파싱은 콘솔 인코딩에 좌우되므로 신뢰도가 낮다.
+      const baseTitle = safeFilename(job.requestedTitle || info.title);
       const filename = `${baseTitle}.m4a`;
       const targetPath = uniqueFilePath(plaudQueueDir, filename);
       job.plaudTitle = baseTitle;

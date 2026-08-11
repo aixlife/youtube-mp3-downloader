@@ -39,7 +39,7 @@ function registerPlaudExtensionRoutes(app, deps) {
   // YouTube extension upload flow only: download audio, import it into PLAUD,
   // then export the generated transcript.
   app.post('/plaud/send', (req, res) => {
-    const { url, start, end } = req.body;
+    const { url, start, end, title } = req.body;
     if (!url) return res.status(400).json({ error: 'URL is required' });
 
     const jobId = crypto.randomBytes(8).toString('hex');
@@ -51,6 +51,8 @@ function registerPlaudExtensionRoutes(app, deps) {
       progress: 0,
       phase: 'PLAUD 전송 준비 중...',
       filename: 'audio.mp3',
+      // 호출자가 준 원제. 있으면 yt-dlp 파싱 대신 이걸 파일명·PLAUD 제목으로 쓴다.
+      requestedTitle: typeof title === 'string' && title.trim() ? title.trim() : null,
       createdAt: Date.now(),
     };
 
