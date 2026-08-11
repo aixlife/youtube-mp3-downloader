@@ -785,7 +785,7 @@ async function ensurePlaudDetailGenerated(page, job) {
 }
 
 async function clickMemberExportButton(page) {
-  const clicked = await page.evaluate(() => {
+  const clickOnce = () => page.evaluate(() => {
     const getHref = (use) =>
       use.getAttribute('href') ||
       use.getAttribute('xlink:href') ||
@@ -800,18 +800,31 @@ async function clickMemberExportButton(page) {
     return true;
   });
 
-  if (clicked) return;
+  // 상세 패널이 늦게 그려지는 머신에서는 한 번만 찾고 포기하면 무조건 실패한다.
+  // 아이콘이 나타날 때까지 폴링한다.
+  const deadline = Date.now() + PLAUD_EXPORT_MENU_TIMEOUT_MS;
+  while (Date.now() < deadline) {
+    if (await clickOnce()) return;
+    await page.waitForTimeout(500);
+  }
 
   const fallback = page.locator('[data-testid="share-button"], .file-action-trigger').first();
   if (!await clickVisible(fallback)) throw new Error('PLAUD Export 메뉴 버튼을 찾지 못했습니다.');
 }
 
 function transcriptExportCandidates(page) {
+  // 2026-08 기준 실제 라벨은 '전사록 내보내기'(아이콘 #svg-icon_transcript).
+  // 같은 메뉴의 '녹음 내보내기'는 오디오 파일이므로 절대 매칭시키지 않는다.
+  // '기록 내보내기'는 구버전 표기라 폴백으로만 둔다.
   return [
+    page.locator('div:has(> div > div > svg use[xlink\\:href="#svg-icon_transcript"])').last(),
+    page.getByText(/^전사록\s*내보내기$/),
     page.getByText(/^기록\s*내보내기$/),
     page.getByText(/^Export transcript$/i),
+    page.locator('[role="menuitem"]').filter({ hasText: /전사록\s*내보내기/ }),
     page.locator('[role="menuitem"]').filter({ hasText: /기록\s*내보내기/ }),
     page.locator('[role="menuitem"]').filter({ hasText: /Export transcript/i }),
+    page.locator('li, div').filter({ hasText: /^전사록\s*내보내기$/ }),
     page.locator('li, div').filter({ hasText: /^기록\s*내보내기$/ }),
     page.locator('li, div').filter({ hasText: /^Export transcript$/i }),
   ];
@@ -842,7 +855,10 @@ function plaudExportMenuCandidates(page, kind) {
   return kind === 'note' ? noteExportCandidates(page) : transcriptExportCandidates(page);
 }
 
-async function findPlaudExportMenuItem(page, kind = 'transcript', timeoutMs = 15000) {
+// 느린 머신에서는 메뉴 렌더가 15초를 넘긴다(윈도우 24시간 PC 실측).
+const PLAUD_EXPORT_MENU_TIMEOUT_MS = parseInt(process.env.PLAUD_EXPORT_MENU_TIMEOUT_MS || '15000', 10);
+
+async function findPlaudExportMenuItem(page, kind = 'transcript', timeoutMs = PLAUD_EXPORT_MENU_TIMEOUT_MS) {
   return findVisibleLocator(page, plaudExportMenuCandidates(page, kind), timeoutMs);
 }
 

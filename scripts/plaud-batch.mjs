@@ -84,7 +84,11 @@ function saveState(state) {
 // `plaud today` 출력에서 당일 총 사용 초를 합산한다.
 // 형식: "  <file_id>  <title>  <YYYY-MM-DD>  <1h02m03s>"
 async function plaudTodaySeconds() {
-  const { stdout } = await execFileAsync(PLAUD_BIN, ['today'], { timeout: 120_000 });
+  // 윈도우의 plaud는 .cmd 래퍼라 shell 없이는 execFile로 실행되지 않는다.
+  const { stdout } = await execFileAsync(PLAUD_BIN, ['today'], {
+    timeout: 120_000,
+    shell: process.platform === 'win32',
+  });
   let total = 0;
   let count = 0;
   for (const raw of stdout.split('\n')) {
