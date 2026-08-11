@@ -36,6 +36,10 @@ const POLL_INTERVAL_MS = 15_000;
 // 연속 다운로드는 유튜브 연결 끊김(HTTPSConnection)을 부르고,
 // 직전 잡의 PLAUD 브라우저 컨텍스트가 정리될 시간도 필요하다.
 const ITEM_GAP_MS = Number(process.env.ITEM_GAP_MS || 30_000);
+// 프로필 락·서버 무응답은 항목이 아니라 환경 문제다. 그대로 진행하면 큐를 통째로
+// 태워 버린다(2026-08-05: 42편 연속 실패 후 러너 사망, 6일간 방치).
+const ENV_FAILURE_LIMIT = Number(process.env.ENV_FAILURE_LIMIT || 3);
+const ENV_FAILURE_PATTERN = /ProcessSingleton|launchPersistentContext|fetch failed|ECONNREFUSED/i;
 const JOB_TIMEOUT_FACTOR = 0.8;
 const JOB_TIMEOUT_MIN_MS = 10 * 60 * 1000;
 
@@ -229,6 +233,15 @@ async function main() {
 
   let okCount = 0;
   let failCount = 0;
+  let envFailStreak = 0;
+
+  const recordFailure = (item, message) => {
+    state.failed[item.id] = { title: item.title, error: message, at: new Date().toISOString() };
+    failCount += 1;
+    log(`  실패: ${message}`);
+    envFailStreak = ENV_FAILURE_PATTERN.test(message) ? envFailStreak + 1 : 0;
+    return envFailStreak >= ENV_FAILURE_LIMIT;
+  };
 
   for (const [i, item] of plan.entries()) {
     if (i > 0) await new Promise((r) => setTimeout(r, ITEM_GAP_MS));
@@ -249,16 +262,21 @@ async function main() {
         delete state.failed[item.id];
         state.daily[today] = (state.daily[today] || 0) + item.duration;
         okCount += 1;
+        envFailStreak = 0;
         log(`  완료 → ${result.downloadPath}`);
-      } else {
-        state.failed[item.id] = { title: item.title, error: result.error, at: new Date().toISOString() };
-        failCount += 1;
-        log(`  실패: ${result.error}`);
+      } else if (recordFailure(item, result.error)) {
+        saveState(state);
+        log(`환경 오류 ${ENV_FAILURE_LIMIT}회 연속 — 큐를 태우지 않고 중단합니다.`);
+        log('서버와 PLAUD 프로필 락을 확인한 뒤 다시 실행하세요.');
+        break;
       }
     } catch (err) {
-      state.failed[item.id] = { title: item.title, error: err.message, at: new Date().toISOString() };
-      failCount += 1;
-      log(`  실패: ${err.message}`);
+      if (recordFailure(item, err.message)) {
+        saveState(state);
+        log(`환경 오류 ${ENV_FAILURE_LIMIT}회 연속 — 큐를 태우지 않고 중단합니다.`);
+        log('서버와 PLAUD 프로필 락을 확인한 뒤 다시 실행하세요.');
+        break;
+      }
     }
     saveState(state);
   }
