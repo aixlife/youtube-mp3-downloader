@@ -43,7 +43,9 @@ const ENV_FAILURE_PATTERN = /ProcessSingleton|launchPersistentContext|fetch fail
 const JOB_TIMEOUT_FACTOR = 0.8;
 // 짧은 영상도 업로드+전사 생성에 10분을 넘길 수 있다(2026-08-12 9분 영상 실패).
 // PLAUD 클라우드 대기 시간은 영상 길이에 비례하지 않으므로 하한을 넉넉히 둔다.
-const JOB_TIMEOUT_MIN_MS = Number(process.env.JOB_TIMEOUT_MIN_MS || 20 * 60 * 1000);
+// 2026-08-13: 20분으로도 7건이 잘렸다. PLAUD 클라우드 전사 대기가 길어질 때가 있어
+// 하한을 40분으로 둔다. 기다리는 비용보다 재업로드로 쿼터를 두 번 쓰는 비용이 크다.
+const JOB_TIMEOUT_MIN_MS = Number(process.env.JOB_TIMEOUT_MIN_MS || 40 * 60 * 1000);
 
 const args = process.argv.slice(2);
 const hasFlag = (f) => args.includes(f);
