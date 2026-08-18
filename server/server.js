@@ -1,6 +1,6 @@
 const express = require('express');
 const cors = require('cors');
-const { spawn } = require('child_process');
+const { spawn, spawnSync } = require('child_process');
 const path = require('path');
 const fs = require('fs');
 const os = require('os');
@@ -66,9 +66,41 @@ function findOutputFile(basePath) {
   return null;
 }
 
-// Chrome cookies for members-only / age-restricted videos
-// Auto-detect browser for cookies (members-only / age-restricted videos)
+// Browser cookies for members-only / age-restricted videos.
+// 프로필 폴더가 있다고 쿠키를 뽑을 수 있는 건 아니다. Chrome/Brave는 App-Bound 암호화
+// 이후 폴더는 그대로인데 추출만 0건이 되고, 그 상태로 고르면 쿠키 없이 받다가 403이 난다.
+// 그래서 후보마다 실제로 한 번 뽑아보고 건수가 있는 브라우저만 채택한다.
+// 프로브는 해석 불가 호스트를 써서 네트워크 요청 없이 쿠키 추출 로그만 얻는다.
+const COOKIE_PROBE_URL = 'https://localhost.invalid/probe';
+
+function countExtractedCookies(browser) {
+  try {
+    const out = spawnSync('yt-dlp', [
+      '--no-update',
+      '--cookies-from-browser', browser,
+      '--simulate',
+      '--no-warnings',
+      COOKIE_PROBE_URL,
+    ], { encoding: 'utf8', timeout: 30000 });
+    const text = `${out.stdout || ''}${out.stderr || ''}`;
+    const match = text.match(/Extracted (\d+) cookies from/i);
+    return match ? parseInt(match[1], 10) : 0;
+  } catch {
+    return 0;
+  }
+}
+
 function detectBrowser() {
+  const override = (process.env.YT_COOKIE_BROWSER || '').trim();
+  if (override) {
+    if (override.toLowerCase() === 'none') {
+      console.log('[cookies] YT_COOKIE_BROWSER=none, cookies disabled');
+      return null;
+    }
+    console.log(`[cookies] Using YT_COOKIE_BROWSER override: ${override}`);
+    return override;
+  }
+
   const homeDir = os.homedir();
   const isMac = process.platform === 'darwin';
   const isWin = process.platform === 'win32';
@@ -82,6 +114,7 @@ function detectBrowser() {
     { name: 'firefox', mac: 'Firefox', win: 'Mozilla\\Firefox', linux: 'mozilla/firefox' },
   ];
 
+  const installed = [];
   for (const b of browsers) {
     let checkPath;
     if (isMac) checkPath = path.join(homeDir, 'Library/Application Support', b.mac);
@@ -89,12 +122,24 @@ function detectBrowser() {
     else if (isLinux) checkPath = path.join(homeDir, '.config', b.linux);
     // Verify actual browser profile exists (not just the app support folder)
     const profilePath = checkPath && path.join(checkPath, 'Default');
-    if (profilePath && fs.existsSync(profilePath)) {
-      console.log(`[cookies] Detected browser: ${b.name}`);
-      return b.name;
-    }
+    if (profilePath && fs.existsSync(profilePath)) installed.push(b.name);
   }
-  console.log('[cookies] No supported browser detected, cookies disabled');
+
+  if (!installed.length) {
+    console.log('[cookies] No supported browser detected, cookies disabled');
+    return null;
+  }
+
+  for (const name of installed) {
+    const count = countExtractedCookies(name);
+    if (count > 0) {
+      console.log(`[cookies] Detected browser: ${name} (${count} cookies)`);
+      return name;
+    }
+    console.log(`[cookies] ${name}: 0 cookies extracted, skipping`);
+  }
+
+  console.log(`[cookies] No browser yielded cookies (tried: ${installed.join(', ')}), cookies disabled`);
   return null;
 }
 
