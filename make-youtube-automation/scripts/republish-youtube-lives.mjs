@@ -10,6 +10,10 @@ import { getSecret, secretNames, setSecret } from "../lib/secret-store.mjs";
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const rootDir = path.resolve(__dirname, "..");
 const studioDownloadUrls = new Map();
+let studioUserAgent = null;
+
+const DEFAULT_STUDIO_USER_AGENT = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) "
+  + "AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0.0.0 Safari/537.36 Edg/140.0.0.0";
 
 const YOUTUBE_SCOPES = [
   "https://www.googleapis.com/auth/youtube.upload",
@@ -324,6 +328,29 @@ function parseNetscapeCookies(filePath) {
     .filter((cookie) => cookie.name && cookie.value && (cookie.domain.includes("youtube.com") || cookie.domain.includes("google.com")));
 }
 
+async function writeNetscapeCookies(filePath, cookies) {
+  const lines = ["# Netscape HTTP Cookie File", "# Updated by make-youtube automation", ""];
+  for (const cookie of cookies) {
+    if (!cookie.name || !cookie.domain) continue;
+    const domain = cookie.httpOnly ? `#HttpOnly_${cookie.domain}` : cookie.domain;
+    const includeSubdomains = cookie.domain.startsWith(".") ? "TRUE" : "FALSE";
+    const secure = cookie.secure ? "TRUE" : "FALSE";
+    const expires = Number.isFinite(cookie.expires) && cookie.expires > 0
+      ? Math.floor(cookie.expires)
+      : 0;
+    lines.push([
+      domain,
+      includeSubdomains,
+      cookie.path || "/",
+      secure,
+      expires,
+      cookie.name,
+      cookie.value
+    ].join("\t"));
+  }
+  await fs.writeFile(filePath, `${lines.join("\n")}\n`, { mode: 0o600 });
+}
+
 function fsSyncRead(filePath) {
   return requireFs().readFileSync(filePath, "utf8");
 }
@@ -364,6 +391,8 @@ async function extractStudioDownloadLinks(args, items) {
     const context = await browser.newContext({ acceptDownloads: true });
     await context.addCookies(cookies);
     const page = await context.newPage();
+    studioUserAgent = (await page.evaluate(() => navigator.userAgent))
+      .replace("HeadlessChrome", "Chrome");
 
     // Studio의 /video/<id>/edit는 활성 채널 기준으로 해석된다. 계정에 채널이 여러 개면
     // 활성 채널이 다른 채널로 바뀌어 있을 수 있고, 그때 편집 페이지는 권한 오류를 낸다.
@@ -382,6 +411,9 @@ async function extractStudioDownloadLinks(args, items) {
         throw new Error(`Cannot find channel "${args.studioChannelName}" in the account's channel list.`);
       }
     }
+
+    // 채널 전환으로 갱신된 세션을 이후 curl 다운로드에서도 그대로 사용한다.
+    await writeNetscapeCookies(args.cookieFile, await context.cookies());
 
     for (const item of items) {
       const videoId = videoIdFromItem(item);
@@ -498,7 +530,7 @@ async function downloadStudioVideo(args, config, item) {
     "-b",
     args.cookieFile,
     "-A",
-    "Mozilla/5.0",
+    studioUserAgent || DEFAULT_STUDIO_USER_AGENT,
     "--fail",
     "--show-error",
     "--output",

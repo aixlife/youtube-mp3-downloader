@@ -10,6 +10,8 @@
   "edgeAutomationProfileDir": "edge-profile",
   "closeEdgeForCookieExport": true,
   "restoreEdgeAfterCookieExport": true,
+  "expectedChannelId": "UCfLllxOn8hbOqwVFYw5L-PQ",
+  "studioChannelName": "메이크패밀리",
   "privacyStatus": "unlisted",
   "categoryId": "27",
   "copyThumbnail": true,
