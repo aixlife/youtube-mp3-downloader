@@ -1,5 +1,5 @@
 param(
-  [ValidateSet("primary", "retry", "manual")]
+  [ValidateSet("primary", "retry", "final", "manual")]
   [string]$Slot = "manual"
 )
 
@@ -35,4 +35,3 @@ try {
 
 Add-Content -Path $logPath -Encoding UTF8 -Value ("[{0}] exit={1}" -f (Get-Date -Format o), $exitCode)
 exit $exitCode
-

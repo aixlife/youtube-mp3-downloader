@@ -35,25 +35,30 @@ $settings = New-ScheduledTaskSettingsSet `
 function Register-LiveReplayTask {
   param(
     [string]$TaskName,
-    [string]$At,
+    [string]$WednesdayAt,
+    [string]$FridayAt,
     [string]$Slot
   )
   $arguments = '-NoProfile -NonInteractive -WindowStyle Hidden -ExecutionPolicy Bypass -File "{0}" -Slot {1}' -f $invokeScript, $Slot
   $action = New-ScheduledTaskAction -Execute "powershell.exe" -Argument $arguments -WorkingDirectory $InstallRoot
-  $trigger = New-ScheduledTaskTrigger -Weekly -WeeksInterval 1 -DaysOfWeek Wednesday,Friday -At $At
+  $triggers = @(
+    New-ScheduledTaskTrigger -Weekly -WeeksInterval 1 -DaysOfWeek Wednesday -At $WednesdayAt
+    New-ScheduledTaskTrigger -Weekly -WeeksInterval 1 -DaysOfWeek Friday -At $FridayAt
+  )
   $task = New-ScheduledTask `
     -Action $action `
-    -Trigger $trigger `
+    -Trigger $triggers `
     -Principal $principal `
     -Settings $settings `
     -Description "AIMAX live replay automation. The Windows user must remain signed in; the screen may be locked."
   Register-ScheduledTask -TaskName $TaskName -InputObject $task -Force | Out-Null
 }
 
-Register-LiveReplayTask -TaskName "AIMAX-Live-Replay-Primary" -At "10:00" -Slot "primary"
-Register-LiveReplayTask -TaskName "AIMAX-Live-Replay-Retry" -At "14:00" -Slot "retry"
+Register-LiveReplayTask -TaskName "AIMAX-Live-Replay-Primary" -WednesdayAt "03:10" -FridayAt "01:10" -Slot "primary"
+Register-LiveReplayTask -TaskName "AIMAX-Live-Replay-Retry" -WednesdayAt "05:10" -FridayAt "03:10" -Slot "retry"
+Register-LiveReplayTask -TaskName "AIMAX-Live-Replay-Final" -WednesdayAt "10:10" -FridayAt "08:10" -Slot "final"
 
-$result = foreach ($name in @("AIMAX-Live-Replay-Primary", "AIMAX-Live-Replay-Retry")) {
+$result = foreach ($name in @("AIMAX-Live-Replay-Primary", "AIMAX-Live-Replay-Retry", "AIMAX-Live-Replay-Final")) {
   $task = Get-ScheduledTask -TaskName $name
   $info = Get-ScheduledTaskInfo -TaskName $name
   [PSCustomObject]@{
@@ -65,4 +70,3 @@ $result = foreach ($name in @("AIMAX-Live-Replay-Primary", "AIMAX-Live-Replay-Re
   }
 }
 $result | ConvertTo-Json -Depth 3
-
