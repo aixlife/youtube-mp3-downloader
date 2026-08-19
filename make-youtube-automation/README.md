@@ -108,7 +108,7 @@ npm run cleanup-downloads
 
 ## Windows 정기 실행
 
-Windows 작업 스케줄러에는 다음 두 작업을 등록합니다.
+Windows 작업 스케줄러에는 다음 세 작업을 등록합니다.
 
 - `AIMAX-Live-Replay-Primary`: 수요일 03:10 · 금요일 01:10
 - `AIMAX-Live-Replay-Retry`: 수요일 05:10 · 금요일 03:10
