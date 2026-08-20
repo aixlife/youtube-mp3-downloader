@@ -122,7 +122,7 @@ Windows 사용자는 로그인 상태여야 합니다. 화면 잠금은 가능�
 
 예약 작업의 진입점은 `scripts/run-scheduled-pipeline.mjs`입니다. 이 스크립트가 기존 라이브 러너를 먼저 완료한 뒤 `cafePublisher.enabled=true`일 때만 카페 게시기를 실행합니다. 카페 단계는 별도 상태 파일을 사용하므로 카페 오류를 재시도할 때 YouTube 업로드와 라운지 등록을 반복하지 않습니다.
 
-`config.windows.json`의 로컬 설정 예시는 다음과 같습니다. 기본 예제는 외부 게시를 막기 위해 `enabled=false`, `mode=dry`, `notify=false`입니다.
+운영 PC에서는 추적 파일을 수정하지 않도록 `config.windows.json`을 Git에서 제외된 `config.local.json`으로 복사해 사용합니다. 기본 예제는 외부 게시를 막기 위해 `enabled=false`, `mode=dry`, `notify=false`입니다.
 
 ```json
 {
@@ -151,7 +151,7 @@ Windows 사용자는 로그인 상태여야 합니다. 화면 잠금은 가능�
 수동 비게시 점검 예시:
 
 ```powershell
-node scripts\run-scheduled-pipeline.mjs --config config.windows.json `
+node scripts\run-scheduled-pipeline.mjs --config config.local.json `
   --date 2026-08-18 --kind ai --source https://youtu.be/VIDEO_ID
 ```
 
@@ -160,7 +160,13 @@ node scripts\run-scheduled-pipeline.mjs --config config.windows.json `
 무업로드 점검:
 
 ```powershell
-node scripts\run-scheduled-pipeline.mjs --config config.windows.json --doctor --date 2026-07-14 --kind ai --source https://youtu.be/VIDEO_ID
+node scripts\run-scheduled-pipeline.mjs --config config.local.json --doctor --date 2026-07-14 --kind ai --source https://youtu.be/VIDEO_ID
 ```
 
 점검은 YouTube 업로드나 DB 쓰기를 하지 않고 OAuth, DB 읽기, Edge 쿠키, YouTube Studio 접근과 원본 처리 완료 여부만 확인합니다.
+
+예약 작업 등록도 같은 로컬 설정 파일을 명시합니다.
+
+```powershell
+.\scripts\install-windows.ps1 -Config config.local.json
+```

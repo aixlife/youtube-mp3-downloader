@@ -1,5 +1,6 @@
 param(
-  [string]$InstallRoot = (Split-Path -Parent $PSScriptRoot)
+  [string]$InstallRoot = (Split-Path -Parent $PSScriptRoot),
+  [string]$Config = "config.windows.json"
 )
 
 $ErrorActionPreference = "Stop"
@@ -10,7 +11,7 @@ $ytDlp = Get-Command yt-dlp.exe -ErrorAction Stop
 $invokeScript = Join-Path $InstallRoot "scripts\invoke-scheduled.ps1"
 if (-not (Test-Path $invokeScript)) { throw "Scheduled runner not found: $invokeScript" }
 
-$configPath = Join-Path $InstallRoot "config.windows.json"
+$configPath = if ([IO.Path]::IsPathRooted($Config)) { $Config } else { Join-Path $InstallRoot $Config }
 if (-not (Test-Path $configPath)) { throw "Windows config not found: $configPath" }
 $config = Get-Content -Raw -Encoding UTF8 $configPath | ConvertFrom-Json
 $cafeEnabled = [bool]($config.cafePublisher -and $config.cafePublisher.enabled)
@@ -67,7 +68,7 @@ function Register-LiveReplayTask {
     [string]$FridayAt,
     [string]$Slot
   )
-  $arguments = '-NoProfile -NonInteractive -WindowStyle Hidden -ExecutionPolicy Bypass -File "{0}" -Slot {1}' -f $invokeScript, $Slot
+  $arguments = '-NoProfile -NonInteractive -WindowStyle Hidden -ExecutionPolicy Bypass -File "{0}" -Slot {1} -Config "{2}"' -f $invokeScript, $Slot, $configPath
   $action = New-ScheduledTaskAction -Execute "powershell.exe" -Argument $arguments -WorkingDirectory $InstallRoot
   $triggers = @(
     New-ScheduledTaskTrigger -Weekly -WeeksInterval 1 -DaysOfWeek Wednesday -At $WednesdayAt
