@@ -23,7 +23,7 @@ try {
   # 러너의 stderr는 실패 원인 그 자체이므로 종료 오류로 승격시키지 않는다.
   # Stop 유지 시 첫 stderr 줄에서 파이프라인이 끊겨 원인이 로그에 남지 않는다.
   $ErrorActionPreference = "Continue"
-  & node.exe "scripts\run-scheduled-live.mjs" --config "config.windows.json" --slot $Slot 2>&1 |
+  & node.exe "scripts\run-scheduled-pipeline.mjs" --config "config.windows.json" --slot $Slot 2>&1 |
     ForEach-Object { $line = "$_"; Write-Host $line; Add-Content -Path $logPath -Encoding UTF8 -Value $line }
   $exitCode = $LASTEXITCODE
 } catch {

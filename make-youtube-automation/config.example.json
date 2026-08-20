@@ -17,6 +17,17 @@
   "copyThumbnail": true,
   "notifySubscribers": false,
   "selfDeclaredMadeForKids": false,
+  "cafePublisher": {
+    "enabled": false,
+    "mode": "dry",
+    "python": "C:\\Users\\likim\\AppData\\Local\\Programs\\Python\\Python312\\python.exe",
+    "script": "C:\\Users\\likim\\AppData\\Local\\AIMAX\\CafePublisher\\notebook_cafe_auto.py",
+    "template": "reference-5854",
+    "imageCount": 5,
+    "notify": false,
+    "expectedClubId": "26321967",
+    "expectedMenuId": "315"
+  },
   "keychain": {
     "account": "make-youtube",
     "oauthClientJsonService": "make-youtube-oauth-client-json",

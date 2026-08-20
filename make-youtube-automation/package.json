@@ -12,8 +12,8 @@
     "upload-keep-files": "node scripts/republish-youtube-lives.mjs --manifest manifest.local.json --upload",
     "apply-db": "node scripts/republish-youtube-lives.mjs --manifest manifest.local.json --apply-db",
     "cleanup-downloads": "node scripts/republish-youtube-lives.mjs --manifest manifest.local.json --cleanup-downloads",
-    "scheduled": "node scripts/run-scheduled-live.mjs --config config.windows.json",
-    "doctor": "node scripts/run-scheduled-live.mjs --config config.windows.json --doctor",
+    "scheduled": "node scripts/run-scheduled-pipeline.mjs --config config.windows.json",
+    "doctor": "node scripts/run-scheduled-pipeline.mjs --config config.windows.json --doctor",
     "test": "node --test tests/*.test.mjs"
   },
   "dependencies": {

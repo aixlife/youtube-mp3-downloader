@@ -1,6 +1,6 @@
 # make-youtube automation
 
-YouTube 라이브 녹화본을 다운로드하고, 새 영상으로 일부공개 업로드한 뒤, 라운지 DB의 `Lesson.youtubeUrl`에 새 링크를 반영하기 위한 별도 작업 폴더입니다. 운영 실행기는 상시 켜져 있는 Windows PC에서 동작합니다.
+YouTube 라이브 녹화본을 다운로드하고, 새 영상으로 일부공개 업로드한 뒤, 라운지 DB의 `Lesson.youtubeUrl`에 새 링크를 반영합니다. 선택적으로 같은 원본으로 Naver Cafe 정리글을 만들고 검증 후 Telegram 링크 알림까지 이어갑니다. 운영 실행기는 상시 켜져 있는 Windows PC에서 동작합니다.
 
 새 업로드 영상은 기본적으로 `unlisted`로 생성하고, 구독자 알림은 보내지 않습니다. 원본 썸네일은 함께 내려받은 뒤 새 영상에 다시 설정합니다. 업로드가 성공해 `uploadedUrl`이 생긴 항목은 로컬 다운로드 원본과 썸네일을 자동 삭제할 수 있습니다.
 
@@ -118,10 +118,49 @@ Windows 작업 스케줄러에는 다음 세 작업을 등록합니다.
 
 Windows 사용자는 로그인 상태여야 합니다. 화면 잠금은 가능하며, Mac을 켜둘 필요는 없습니다. Edge의 기본 프로필은 운영 YouTube Studio 계정에 로그인되어 있어야 합니다. 쿠키 파일이 잠겨 있으면 예약 실행 중 Edge가 잠시 종료되고 이전 세션으로 다시 열립니다.
 
+## Naver Cafe 후속 파이프라인
+
+예약 작업의 진입점은 `scripts/run-scheduled-pipeline.mjs`입니다. 이 스크립트가 기존 라이브 러너를 먼저 완료한 뒤 `cafePublisher.enabled=true`일 때만 카페 게시기를 실행합니다. 카페 단계는 별도 상태 파일을 사용하므로 카페 오류를 재시도할 때 YouTube 업로드와 라운지 등록을 반복하지 않습니다.
+
+`config.windows.json`의 로컬 설정 예시는 다음과 같습니다. 기본 예제는 외부 게시를 막기 위해 `enabled=false`, `mode=dry`, `notify=false`입니다.
+
+```json
+{
+  "cafePublisher": {
+    "enabled": false,
+    "mode": "dry",
+    "python": "C:\\Users\\likim\\AppData\\Local\\Programs\\Python\\Python312\\python.exe",
+    "script": "C:\\Users\\likim\\AppData\\Local\\AIMAX\\CafePublisher\\notebook_cafe_auto.py",
+    "template": "reference-5854",
+    "imageCount": 5,
+    "notify": false,
+    "expectedClubId": "26321967",
+    "expectedMenuId": "315"
+  }
+}
+```
+
+모드별 완료 기준은 서로 독립적입니다.
+
+- `dry`: 원고, 대표 장면 5장, 미리보기, 결과 JSON만 생성합니다. Naver/Telegram 쓰기는 없습니다.
+- `draft`: Naver 임시저장까지 수행합니다. 실제 발행과 Telegram은 하지 않습니다.
+- `publish`: 글 등록 후 제목·텍스트 6구간·이미지 5장·인용구 0개·YouTube OG 카드 1개를 다시 읽어 검증합니다. `notify=true`이면 검증 뒤 Telegram을 한 번만 전송합니다.
+
+상태는 `state/YYYY-MM-DD-KIND-cafe.json`에 기록합니다. 글 등록 직후 URL이 보존되므로 검증이나 Telegram이 실패해도 다음 실행은 기존 글을 재검증하며 새 글을 중복 발행하지 않습니다. 다운로드 원본은 `publish`와 필요한 Telegram 단계가 모두 끝난 뒤에만 삭제합니다. `dry`와 `draft`에서는 다음 승인 단계가 같은 영상 파일을 재사용할 수 있게 보존합니다.
+
+수동 비게시 점검 예시:
+
+```powershell
+node scripts\run-scheduled-pipeline.mjs --config config.windows.json `
+  --date 2026-08-18 --kind ai --source https://youtu.be/VIDEO_ID
+```
+
+첫 운영 전환은 `disabled → dry → draft → publish/notify` 순서로 각각 결과를 확인하고 설정을 올립니다.
+
 무업로드 점검:
 
 ```powershell
-node scripts\run-scheduled-live.mjs --config config.windows.json --doctor --date 2026-07-14 --kind ai --source https://youtu.be/VIDEO_ID
+node scripts\run-scheduled-pipeline.mjs --config config.windows.json --doctor --date 2026-07-14 --kind ai --source https://youtu.be/VIDEO_ID
 ```
 
 점검은 YouTube 업로드나 DB 쓰기를 하지 않고 OAuth, DB 읽기, Edge 쿠키, YouTube Studio 접근과 원본 처리 완료 여부만 확인합니다.

@@ -761,7 +761,11 @@ async function processScheduled({ args, config, configPath, target, paths }) {
       await verifyPrisma.$disconnect();
     }
 
-    await runRepublish(["--config", configPath, "--manifest", manifestPath, "--cleanup-downloads"]);
+    if (config.cafePublisher?.enabled === true) {
+      console.log("Cafe publisher is enabled; keeping the downloaded source until the Cafe pipeline completes.");
+    } else {
+      await runRepublish(["--config", configPath, "--manifest", manifestPath, "--cleanup-downloads"]);
+    }
     await saveState("complete", {
       sourceVideoId: current.sourceVideoId,
       uploadedUrl: current.uploadedUrl,
