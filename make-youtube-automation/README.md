@@ -168,5 +168,5 @@ node scripts\run-scheduled-pipeline.mjs --config config.local.json --doctor --da
 예약 작업 등록도 같은 로컬 설정 파일을 명시합니다.
 
 ```powershell
-.\scripts\install-windows.ps1 -Config config.local.json
+.\scripts\install-windows.ps1 -ConfigFile config.local.json
 ```

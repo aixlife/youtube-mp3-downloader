@@ -1,6 +1,7 @@
 param(
   [string]$InstallRoot = (Split-Path -Parent $PSScriptRoot),
-  [string]$Config = "config.windows.json"
+  [Alias("Config")]
+  [string]$ConfigFile = "config.windows.json"
 )
 
 $ErrorActionPreference = "Stop"
@@ -11,16 +12,16 @@ $ytDlp = Get-Command yt-dlp.exe -ErrorAction Stop
 $invokeScript = Join-Path $InstallRoot "scripts\invoke-scheduled.ps1"
 if (-not (Test-Path $invokeScript)) { throw "Scheduled runner not found: $invokeScript" }
 
-$configPath = if ([IO.Path]::IsPathRooted($Config)) { $Config } else { Join-Path $InstallRoot $Config }
+$configPath = if ([IO.Path]::IsPathRooted($ConfigFile)) { $ConfigFile } else { Join-Path $InstallRoot $ConfigFile }
 if (-not (Test-Path $configPath)) { throw "Windows config not found: $configPath" }
-$config = Get-Content -Raw -Encoding UTF8 $configPath | ConvertFrom-Json
-$cafeEnabled = [bool]($config.cafePublisher -and $config.cafePublisher.enabled)
+$runtimeConfig = Get-Content -Raw -Encoding UTF8 $configPath | ConvertFrom-Json
+$cafeEnabled = [bool]($runtimeConfig.cafePublisher -and $runtimeConfig.cafePublisher.enabled)
 $cafePython = $null
 if ($cafeEnabled) {
-  $cafePython = [string]$config.cafePublisher.python
-  $cafeScript = [string]$config.cafePublisher.script
-  $expectedClubId = [string]$config.cafePublisher.expectedClubId
-  $expectedMenuId = [string]$config.cafePublisher.expectedMenuId
+  $cafePython = [string]$runtimeConfig.cafePublisher.python
+  $cafeScript = [string]$runtimeConfig.cafePublisher.script
+  $expectedClubId = [string]$runtimeConfig.cafePublisher.expectedClubId
+  $expectedMenuId = [string]$runtimeConfig.cafePublisher.expectedMenuId
   if (-not $cafePython -or -not (Test-Path $cafePython)) {
     throw "Cafe publisher Python is missing: $cafePython"
   }
