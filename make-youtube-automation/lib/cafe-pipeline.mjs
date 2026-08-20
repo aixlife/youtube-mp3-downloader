@@ -63,7 +63,6 @@ export function buildPublisherArgs({ cafe, item, target, resultPath, videoFile =
     "--no-keywords",
     "--unattended",
   ];
-  if (item.sourceUrl) args.push("--notebook-url", item.sourceUrl);
   if (videoFile) args.push("--video-file", videoFile);
   if (cafe.expectedClubId) args.push("--expected-club-id", cafe.expectedClubId);
   if (cafe.expectedMenuId) args.push("--expected-menu-id", cafe.expectedMenuId);

@@ -41,7 +41,7 @@ test("enabled publisher rejects a self-consistent but unapproved board", () => {
   }, rootDir), /pinned to club 26321967, menu 315/);
 });
 
-test("publisher arguments separate NotebookLM source from replay link", () => {
+test("publisher uses the verified replay for NotebookLM and the article link", () => {
   const cafe = normalizeCafePublisherConfig({
     cafePublisher: {
       enabled: true,
@@ -56,9 +56,7 @@ test("publisher arguments separate NotebookLM source from replay link", () => {
   });
   assert.equal(args[0], path.resolve(rootDir, "publisher/notebook_cafe_auto.py"));
   assert.equal(args[1], item.uploadedUrl);
-  assert.deepEqual(args.slice(args.indexOf("--notebook-url"), args.indexOf("--notebook-url") + 2), [
-    "--notebook-url", item.sourceUrl,
-  ]);
+  assert.equal(args.includes("--notebook-url"), false);
   assert.ok(args.includes("--video-file"));
   assert.deepEqual(args.slice(args.indexOf("--expected-menu-id"), args.indexOf("--expected-menu-id") + 2), [
     "--expected-menu-id", "315",
