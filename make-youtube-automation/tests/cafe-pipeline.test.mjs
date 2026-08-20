@@ -41,7 +41,7 @@ test("enabled publisher rejects a self-consistent but unapproved board", () => {
   }, rootDir), /pinned to club 26321967, menu 315/);
 });
 
-test("publisher uses the verified replay for NotebookLM and the article link", () => {
+test("publisher uses the members-only live for the article link and replay for NotebookLM", () => {
   const cafe = normalizeCafePublisherConfig({
     cafePublisher: {
       enabled: true,
@@ -55,14 +55,32 @@ test("publisher uses the verified replay for NotebookLM and the article link", (
     cafe, item, target, resultPath: "/tmp/result.json", videoFile: "/tmp/live.mp4",
   });
   assert.equal(args[0], path.resolve(rootDir, "publisher/notebook_cafe_auto.py"));
-  assert.equal(args[1], item.uploadedUrl);
-  assert.equal(args.includes("--notebook-url"), false);
+  assert.equal(args[1], item.sourceUrl);
+  assert.equal(args[args.indexOf("--notebook-url") + 1], item.uploadedUrl);
   assert.ok(args.includes("--video-file"));
   assert.deepEqual(args.slice(args.indexOf("--expected-menu-id"), args.indexOf("--expected-menu-id") + 2), [
     "--expected-menu-id", "315",
   ]);
   assert.ok(args.includes("--dry"));
   assert.ok(!args.includes("--notify"));
+});
+
+test("publisher fails closed without the original members-only live URL", () => {
+  const cafe = normalizeCafePublisherConfig({
+    cafePublisher: {
+      enabled: true,
+      script: "publisher.py",
+      mode: "dry",
+      expectedClubId: "26321967",
+      expectedMenuId: "315",
+    },
+  }, rootDir);
+  assert.throws(() => buildPublisherArgs({
+    cafe,
+    item: { ...item, sourceUrl: "" },
+    target,
+    resultPath: "/tmp/result.json",
+  }), /original members-only live URL/);
 });
 
 test("publish mode requests notification only when enabled", () => {
@@ -115,6 +133,7 @@ test("state keeps known article URL when a notification retry fails", () => {
     result: { ok: false, status: "published-verified-notification-error", error: "network" },
   });
   assert.equal(state.articleUrl, "https://cafe.naver.com/old/1");
+  assert.equal(state.sourceUrl, item.sourceUrl);
   assert.equal(state.verification.ok, true);
   assert.equal(state.error, "network");
 });

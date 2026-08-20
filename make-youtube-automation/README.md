@@ -122,7 +122,7 @@ Windows 사용자는 로그인 상태여야 합니다. 화면 잠금은 가능�
 
 예약 작업의 진입점은 `scripts/run-scheduled-pipeline.mjs`입니다. 이 스크립트가 기존 라이브 러너를 먼저 완료한 뒤 `cafePublisher.enabled=true`일 때만 카페 게시기를 실행합니다. 카페 단계는 별도 상태 파일을 사용하므로 카페 오류를 재시도할 때 YouTube 업로드와 라운지 등록을 반복하지 않습니다.
 
-NotebookLM 원고와 URL 기반 장면 추출은 멤버십 원본이 아니라 업로드·공개범위를 검증한 일부공개 다시보기 URL을 사용합니다. 기존 다운로드 원본이 남아 있으면 장면 추출만 그 로컬 파일을 우선 사용합니다.
+NotebookLM 원고와 URL 기반 장면 추출은 업로드·공개범위를 검증한 일부공개 다시보기 `uploadedUrl`을 사용합니다. 카페 글 맨 아래 YouTube OG 카드는 원본 회원전용 라이브 `sourceUrl`을 사용합니다. 기존 다운로드 원본이 남아 있으면 장면 추출만 그 로컬 파일을 우선 사용합니다.
 
 운영 PC에서는 추적 파일을 수정하지 않도록 `config.windows.json`을 Git에서 제외된 `config.local.json`으로 복사해 사용합니다. 기본 예제는 외부 게시를 막기 위해 `enabled=false`, `mode=dry`, `notify=false`입니다.
 

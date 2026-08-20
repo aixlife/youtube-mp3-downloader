@@ -48,12 +48,14 @@ export function normalizeCafePublisherConfig(config, rootDir) {
 export function buildPublisherArgs({ cafe, item, target, resultPath, videoFile = null }) {
   if (!cafe?.script) throw new Error("cafePublisher.script is required when the publisher is enabled.");
   if (!item?.uploadedUrl) throw new Error("Cafe publishing requires the verified unlisted replay URL.");
+  if (!item?.sourceUrl) throw new Error("Cafe publishing requires the original members-only live URL.");
   if (!item?.title) throw new Error("Cafe publishing requires an explicit title.");
   if (!resultPath) throw new Error("Cafe publishing requires a machine-readable result path.");
 
   const args = [
     cafe.script,
-    item.uploadedUrl,
+    item.sourceUrl,
+    "--notebook-url", item.uploadedUrl,
     "--title", item.title,
     "--images", String(cafe.imageCount),
     "--template", cafe.template,
@@ -100,6 +102,7 @@ export function stateFromPublisherResult({ target, cafe, item, result, resultPat
     status: result?.status || "error",
     stage: result?.stage || "publisher",
     sourceVideoId: item?.sourceVideoId || null,
+    sourceUrl: item?.sourceUrl || null,
     uploadedUrl: item?.uploadedUrl || null,
     articleUrl: result?.articleUrl || previous?.articleUrl || null,
     verification: result?.verification || previous?.verification || null,
