@@ -377,9 +377,13 @@ function createPlaudExtensionUpload(deps) {
     }
   }
 
+  // PLAUD는 업로드만으로 전사를 만들지 않는다. 상세 화면의 Generate 버튼을 눌러야 한다.
+  // 크레딧 소모 가능성이 있어 기본은 누르지 않는다. 대량 배치에서만 환경변수로 연다.
+  const ALLOW_GENERATE = /^(1|true|yes|on)$/i.test(process.env.PLAUD_ALLOW_GENERATE || '');
+
   async function exportPlaudWithPlaywright(context, page, job) {
     const generatedInList = await waitForPlaudGenerated(page, job);
-    await exportPlaudTranscript(page, job, { verifyDetailGenerated: !generatedInList, allowGenerate: false });
+    await exportPlaudTranscript(page, job, { verifyDetailGenerated: !generatedInList, allowGenerate: ALLOW_GENERATE });
     await closePlaudContext(context);
   }
 
@@ -461,6 +465,20 @@ function createPlaudExtensionUpload(deps) {
 
     await waitForImportComplete(page, job);
     await closeImportDialog(page);
+
+    // 업로드만 하고 끝내는 모드.
+    // 긴 영상은 PLAUD 클라우드 전사 생성이 길어서, 한 편 올리고 그 편이 끝날 때까지
+    // 붙잡고 있으면 타임아웃으로 잘린다(라이브 100분 → 90분 대기 후 실패).
+    // 업로드만 몰아서 끝내고 전사본은 나중에 plaud CLI로 일괄 회수한다.
+    if (job.uploadOnly) {
+      // 컨텍스트는 닫지 않는다. 캐시된 컨텍스트를 다음 잡이 재사용하는데,
+      // 여기서 닫으면 다음 잡이 "Target page, context or browser has been closed"로 죽는다.
+      job.keepFile = true;
+      job.status = 'done';
+      job.progress = 100;
+      job.phase = 'PLAUD 업로드 완료 (전사본은 나중에 일괄 회수)';
+      return;
+    }
 
     const recoveryMode = plaudCli.selectPlaudRecoveryMode(await plaudCli.cliAvailable());
     if (recoveryMode === 'cli') {
@@ -843,9 +861,34 @@ function createPlaudExtensionUpload(deps) {
     }
   }
 
+  // 이미 PLAUD에 올라가 있는 파일의 전사를 생성하고 회수한다.
+  // 업로드/회수를 분리한 뒤 남는 단계다. PLAUD는 업로드만으로 전사를 만들지 않고
+  // 상세 화면의 Generate 버튼을 눌러야 하는데, 그 클릭은 ALLOW_GENERATE로만 열린다.
+  async function generateAndExport(job) {
+    // forceNew를 쓰지 않는다. 캐시된 컨텍스트를 강제로 새로 만들면 직전 컨텍스트가 닫히면서
+    // "Target page, context or browser has been closed"로 죽는다.
+    const context = await getPlaudContext({ headless: plaudHeadless });
+    const page = context.pages()[0] || await context.newPage();
+    page.setDefaultTimeout(30000);
+    try {
+      job.status = 'exporting';
+      job.phase = 'PLAUD 상세 화면에서 전사 생성/회수 중...';
+      await exportPlaudTranscript(page, job, {
+        verifyDetailGenerated: true,
+        allowGenerate: ALLOW_GENERATE,
+      });
+      job.status = 'done';
+      job.progress = 100;
+      job.phase = `Transcript 다운로드 완료: ${job.downloadPath}`;
+    } finally {
+      // 컨텍스트는 닫지 않는다. 다음 항목이 그대로 재사용한다.
+    }
+  }
+
   return {
     runPlaudJob,
     uploadToPlaud,
+    generateAndExport,
   };
 }
 
