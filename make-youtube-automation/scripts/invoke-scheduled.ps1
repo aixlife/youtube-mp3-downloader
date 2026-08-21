@@ -26,9 +26,16 @@ try {
   # 러너의 stderr는 실패 원인 그 자체이므로 종료 오류로 승격시키지 않는다.
   # Stop 유지 시 첫 stderr 줄에서 파이프라인이 끊겨 원인이 로그에 남지 않는다.
   $ErrorActionPreference = "Continue"
-  & node.exe "scripts\run-scheduled-pipeline.mjs" --config $configPath --slot $Slot 2>&1 |
+  & node.exe "scripts\preflight-runtime.mjs" --config $configPath --repair --slot $Slot 2>&1 |
     ForEach-Object { $line = "$_"; Write-Host $line; Add-Content -Path $logPath -Encoding UTF8 -Value $line }
   $exitCode = $LASTEXITCODE
+  if ($exitCode -eq 0) {
+    & node.exe "scripts\run-scheduled-pipeline.mjs" --config $configPath --slot $Slot 2>&1 |
+      ForEach-Object { $line = "$_"; Write-Host $line; Add-Content -Path $logPath -Encoding UTF8 -Value $line }
+    $exitCode = $LASTEXITCODE
+  } else {
+    Add-Content -Path $logPath -Encoding UTF8 -Value ("[{0}] pipeline-skipped=runtime-preflight-failed" -f (Get-Date -Format o))
+  }
 } catch {
   $exitCode = 1
   Add-Content -Path $logPath -Encoding UTF8 -Value ("[{0}] launch-error={1}" -f (Get-Date -Format o), $_.Exception.Message)

@@ -118,6 +118,22 @@ Windows 작업 스케줄러에는 다음 세 작업을 등록합니다.
 
 Windows 사용자는 로그인 상태여야 합니다. 화면 잠금은 가능하며, Mac을 켜둘 필요는 없습니다. Edge의 기본 프로필은 운영 YouTube Studio 계정에 로그인되어 있어야 합니다. 쿠키 파일이 잠겨 있으면 예약 실행 중 Edge가 잠시 종료되고 이전 세션으로 다시 열립니다.
 
+### 런타임 사전점검과 제한적 자동복구
+
+각 예약 작업은 본 파이프라인보다 먼저 `scripts/preflight-runtime.mjs`를 실행합니다. 이 점검은 보안 저장소의 DB 주소로 실제 Prisma 클라이언트 생성과 읽기 전용 `SELECT 1`을 확인합니다.
+
+- `@prisma/client` 미생성 오류만 자동복구 허용목록에 포함합니다.
+- 해당 오류면 같은 실행 폴더에서 `prisma generate`를 한 번 수행하고 다시 점검합니다.
+- DB 연결, OAuth, 채널 불일치 등 다른 오류는 임의 수정하거나 업로드를 진행하지 않습니다.
+- 실패 상태는 `logs/incidents/`에 단계, 분류, 실행 슬롯, Git commit을 포함한 비밀값 제거 JSON으로 남깁니다.
+- `install-windows.ps1`도 같은 사전점검을 통과해야 예약 작업을 등록합니다.
+
+수동 점검과 허용된 복구:
+
+```powershell
+node scripts\preflight-runtime.mjs --config config.local.json --repair --slot manual
+```
+
 ## Naver Cafe 후속 파이프라인
 
 예약 작업의 진입점은 `scripts/run-scheduled-pipeline.mjs`입니다. 이 스크립트가 기존 라이브 러너를 먼저 완료한 뒤 `cafePublisher.enabled=true`일 때만 카페 게시기를 실행합니다. 카페 단계는 별도 상태 파일을 사용하므로 카페 오류를 재시도할 때 YouTube 업로드와 라운지 등록을 반복하지 않습니다.

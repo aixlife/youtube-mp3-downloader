@@ -6,6 +6,11 @@ import { spawn } from "node:child_process";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { getSecret, secretNames } from "../lib/secret-store.mjs";
 import {
+  buildRuntimeIncident,
+  classifyRuntimeFailure,
+  safeFailureMessage
+} from "../lib/runtime-health.mjs";
+import {
   lessonMatchesTarget,
   manifestItemForLive,
   mergeResumableManifestItem,
@@ -51,6 +56,15 @@ async function readJson(filePath) {
 async function writeJson(filePath, value) {
   await fs.mkdir(path.dirname(filePath), { recursive: true });
   await fs.writeFile(filePath, `${JSON.stringify(value, null, 2)}\n`);
+}
+
+async function currentCommit() {
+  try {
+    const result = await run("git", ["rev-parse", "HEAD"], { capture: true });
+    return result.stdout.trim().slice(0, 40) || null;
+  } catch {
+    return null;
+  }
 }
 
 function run(command, args, { capture = false, env = process.env } = {}) {
@@ -774,7 +788,12 @@ async function processScheduled({ args, config, configPath, target, paths }) {
     console.log(`Live replay complete: ${target.sourceDate} ${current.uploadedUrl}`);
   } catch (error) {
     const waiting = /Studio download link not found|Cannot find Studio overflow menu/i.test(error.message);
-    await saveState(waiting ? "waiting-processing" : "error", { error: error.message });
+    const failedState = await readJson(statePath).catch(() => null);
+    await saveState(waiting ? "waiting-processing" : "error", {
+      stage: failedState?.status || "processing",
+      failureClass: classifyRuntimeFailure(error),
+      error: safeFailureMessage(error)
+    });
     if (waiting) {
       console.log("YouTube is still processing the original live. The next scheduled slot will retry without duplicating uploads.");
       return;
@@ -783,6 +802,43 @@ async function processScheduled({ args, config, configPath, target, paths }) {
   } finally {
     await fs.rm(cookieFile, { force: true });
   }
+}
+
+async function recordScheduledFailure({ args, target, paths, error }) {
+  const statePath = path.join(paths.stateDir, `${target.sourceDate}-${target.kind}.json`);
+  const previous = await readJson(statePath).catch(() => null);
+  const stage = previous?.stage
+    || (previous?.status && previous.status !== "error" ? previous.status : "scheduled-run");
+  const classification = classifyRuntimeFailure(error);
+  const commit = await currentCommit();
+  const incident = buildRuntimeIncident({
+    sourceDate: target.sourceDate,
+    kind: target.kind,
+    slot: args.slot,
+    stage,
+    error,
+    classification,
+    commit
+  });
+  await writeJson(statePath, {
+    ...(previous || {}),
+    sourceDate: target.sourceDate,
+    kind: target.kind,
+    slot: args.slot,
+    status: "error",
+    stage,
+    failureClass: classification,
+    error: incident.error,
+    commit,
+    updatedAt: incident.occurredAt
+  });
+  const stamp = incident.occurredAt.replace(/[:.]/g, "-");
+  const incidentPath = path.join(
+    paths.logsDir,
+    "incidents",
+    `${target.sourceDate}-${target.kind}-${args.slot}-${stamp}.json`
+  );
+  await writeJson(incidentPath, incident);
 }
 
 export async function main(argv = process.argv.slice(2)) {
@@ -801,7 +857,18 @@ export async function main(argv = process.argv.slice(2)) {
   const lock = await acquireLock(lockPath);
   try {
     if (args.doctor) await doctor({ args, config, target, paths });
-    else await processScheduled({ args, config, configPath, target, paths });
+    else {
+      try {
+        await processScheduled({ args, config, configPath, target, paths });
+      } catch (error) {
+        try {
+          await recordScheduledFailure({ args, target, paths, error });
+        } catch (incidentError) {
+          console.error(`Incident recording failed: ${safeFailureMessage(incidentError)}`);
+        }
+        throw error;
+      }
+    }
   } finally {
     await lock.close();
     await fs.rm(lockPath, { force: true });

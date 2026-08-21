@@ -50,6 +50,16 @@ foreach ($file in $requiredSecrets) {
   if (-not (Test-Path (Join-Path $secretDir $file))) { throw "Secure credential is missing: $file" }
 }
 
+Push-Location $InstallRoot
+try {
+  & $node.Source "scripts\preflight-runtime.mjs" --config $configPath --repair --slot install
+  if ($LASTEXITCODE -ne 0) {
+    throw "Runtime preflight failed. Scheduled tasks were not registered."
+  }
+} finally {
+  Pop-Location
+}
+
 $principal = New-ScheduledTaskPrincipal `
   -UserId ([Security.Principal.WindowsIdentity]::GetCurrent().Name) `
   -LogonType Interactive `
