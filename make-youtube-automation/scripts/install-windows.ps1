@@ -10,7 +10,9 @@ if ($env:OS -ne "Windows_NT") { throw "This installer must run on Windows." }
 $node = Get-Command node.exe -ErrorAction Stop
 $ytDlp = Get-Command yt-dlp.exe -ErrorAction Stop
 $invokeScript = Join-Path $InstallRoot "scripts\invoke-scheduled.ps1"
+$invokeMonitor = Join-Path $InstallRoot "scripts\invoke-monitor.ps1"
 if (-not (Test-Path $invokeScript)) { throw "Scheduled runner not found: $invokeScript" }
+if (-not (Test-Path $invokeMonitor)) { throw "Scheduled monitor not found: $invokeMonitor" }
 
 $configPath = if ([IO.Path]::IsPathRooted($ConfigFile)) { $ConfigFile } else { Join-Path $InstallRoot $ConfigFile }
 if (-not (Test-Path $configPath)) { throw "Windows config not found: $configPath" }
@@ -94,12 +96,29 @@ function Register-LiveReplayTask {
   Register-ScheduledTask -TaskName $TaskName -InputObject $task -Force | Out-Null
 }
 
+function Register-LiveReplayMonitorTask {
+  $arguments = '-NoProfile -NonInteractive -WindowStyle Hidden -ExecutionPolicy Bypass -File "{0}" -Config "{1}"' -f $invokeMonitor, $configPath
+  $action = New-ScheduledTaskAction -Execute "powershell.exe" -Argument $arguments -WorkingDirectory $InstallRoot
+  $triggers = @(
+    New-ScheduledTaskTrigger -Weekly -WeeksInterval 1 -DaysOfWeek Wednesday -At "11:30"
+    New-ScheduledTaskTrigger -Weekly -WeeksInterval 1 -DaysOfWeek Friday -At "11:30"
+  )
+  $task = New-ScheduledTask `
+    -Action $action `
+    -Trigger $triggers `
+    -Principal $principal `
+    -Settings $settings `
+    -Description "AIMAX live replay Windows monitor. It resumes YouTube and lounge work once when incomplete; it never invokes Cafe or Telegram."
+  Register-ScheduledTask -TaskName "AIMAX-Live-Replay-Monitor" -InputObject $task -Force | Out-Null
+}
+
 Register-LiveReplayTask -TaskName "AIMAX-Live-Replay-Primary" -WednesdayAt "03:10" -FridayAt "01:10" -Slot "primary"
 Register-LiveReplayTask -TaskName "AIMAX-Live-Replay-Retry" -WednesdayAt "05:10" -FridayAt "03:10" -Slot "retry"
 Register-LiveReplayTask -TaskName "AIMAX-Live-Replay-Final" -WednesdayAt "10:10" -FridayAt "08:10" -Slot "final"
+Register-LiveReplayMonitorTask
 
 $cafeLabel = if ($cafeEnabled) { "Enabled" } else { "Disabled" }
-$result = foreach ($name in @("AIMAX-Live-Replay-Primary", "AIMAX-Live-Replay-Retry", "AIMAX-Live-Replay-Final")) {
+$result = foreach ($name in @("AIMAX-Live-Replay-Primary", "AIMAX-Live-Replay-Retry", "AIMAX-Live-Replay-Final", "AIMAX-Live-Replay-Monitor")) {
   $task = Get-ScheduledTask -TaskName $name
   $info = Get-ScheduledTaskInfo -TaskName $name
   [PSCustomObject]@{

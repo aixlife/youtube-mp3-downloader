@@ -108,15 +108,18 @@ npm run cleanup-downloads
 
 ## Windows 정기 실행
 
-Windows 작업 스케줄러에는 다음 세 작업을 등록합니다.
+Windows 작업 스케줄러에는 다음 네 작업을 등록합니다.
 
 - `AIMAX-Live-Replay-Primary`: 수요일 03:10 · 금요일 01:10
 - `AIMAX-Live-Replay-Retry`: 수요일 05:10 · 금요일 03:10
 - `AIMAX-Live-Replay-Final`: 수요일 10:10 · 금요일 08:10
+- `AIMAX-Live-Replay-Monitor`: 수요일 11:30 · 금요일 11:30
 
 수요일은 전날 화요일 21시 AI 라이브를 `라이브 다시보기 - AI`에, 금요일은 전날 목요일 19시 비즈니스 라이브를 `라이브 다시보기 - 비즈니스`에 등록합니다. 첫 실행은 라이브 시작 약 6시간 뒤이며, 이후 두 번의 실행은 상태 파일과 DB를 확인해 완료된 경우 즉시 종료합니다. 업로드가 끝난 뒤 DB 반영이 실패한 경우에도 저장된 새 영상 URL부터 이어서 처리하므로 중복 업로드하지 않습니다.
 
 Windows 사용자는 로그인 상태여야 합니다. 화면 잠금은 가능하며, Mac을 켜둘 필요는 없습니다. Edge의 기본 프로필은 운영 YouTube Studio 계정에 로그인되어 있어야 합니다. 쿠키 파일이 잠겨 있으면 예약 실행 중 Edge가 잠시 종료되고 이전 세션으로 다시 열립니다.
+
+`AIMAX-Live-Replay-Monitor`는 최종 실행 뒤 상태를 독립적으로 확인합니다. 이미 `complete`이면 YouTube나 라운지를 다시 호출하지 않습니다. 미완료이면 카페·텔레그램 파이프라인을 우회하고 YouTube·라운지 러너만 한 번 재개합니다. 그래도 완료되지 않으면 작업을 실패 코드로 끝내고 `state/*-monitor.json`과 `logs/incidents/`에 원인을 남깁니다. 이 감시는 Windows 작업 스케줄러에서 실행되며 Mac Codex 자동화에 의존하지 않습니다.
 
 ### 런타임 사전점검과 제한적 자동복구
 
