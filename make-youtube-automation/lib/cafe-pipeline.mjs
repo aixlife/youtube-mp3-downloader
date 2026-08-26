@@ -6,6 +6,10 @@ export const APPROVED_CAFE_TARGET = Object.freeze({
   menuId: "315",
 });
 
+export function cafeArticleTitle(title) {
+  return String(title || "").replace(/^\d{4}-\d{2}-\d{2}(?:\s+|$)/, "").trim();
+}
+
 export function normalizeCafePublisherConfig(config, rootDir) {
   const raw = config?.cafePublisher || {};
   const mode = raw.mode || "dry";
@@ -49,14 +53,15 @@ export function buildPublisherArgs({ cafe, item, target, resultPath, videoFile =
   if (!cafe?.script) throw new Error("cafePublisher.script is required when the publisher is enabled.");
   if (!item?.uploadedUrl) throw new Error("Cafe publishing requires the verified unlisted replay URL.");
   if (!item?.sourceUrl) throw new Error("Cafe publishing requires the original members-only live URL.");
-  if (!item?.title) throw new Error("Cafe publishing requires an explicit title.");
+  const articleTitle = cafeArticleTitle(item?.title);
+  if (!articleTitle) throw new Error("Cafe publishing requires an explicit title.");
   if (!resultPath) throw new Error("Cafe publishing requires a machine-readable result path.");
 
   const args = [
     cafe.script,
     item.sourceUrl,
     "--notebook-url", item.uploadedUrl,
-    "--title", item.title,
+    "--title", articleTitle,
     "--images", String(cafe.imageCount),
     "--template", cafe.template,
     "--result", resultPath,

@@ -141,7 +141,7 @@ node scripts\preflight-runtime.mjs --config config.local.json --repair --slot ma
 
 예약 작업의 진입점은 `scripts/run-scheduled-pipeline.mjs`입니다. 이 스크립트가 기존 라이브 러너를 먼저 완료한 뒤 `cafePublisher.enabled=true`일 때만 카페 게시기를 실행합니다. 카페 단계는 별도 상태 파일을 사용하므로 카페 오류를 재시도할 때 YouTube 업로드와 라운지 등록을 반복하지 않습니다.
 
-NotebookLM 원고와 URL 기반 장면 추출은 업로드·공개범위를 검증한 일부공개 다시보기 `uploadedUrl`을 사용합니다. 카페 글 맨 아래 YouTube OG 카드는 원본 회원전용 라이브 `sourceUrl`을 사용합니다. 기존 다운로드 원본이 남아 있으면 장면 추출만 그 로컬 파일을 우선 사용합니다.
+NotebookLM 원고와 URL 기반 장면 추출은 업로드·공개범위를 검증한 일부공개 다시보기 `uploadedUrl`을 사용합니다. 카페 글 제목에서는 자동으로 앞쪽 `YYYY-MM-DD`를 빼고 레퍼런스 글처럼 본문 제목만 사용합니다. 글 맨 아래에는 원본 라이브 영상 ID로 만든 회원 시청용 `https://www.youtube.com/watch?v=...` 주소를 임베드 카드가 아닌 직접 클릭 링크로 넣고, 전달된 전체 URL과 발행된 `href`가 정확히 같은지 재검증합니다. 기존 다운로드 원본이 남아 있으면 장면 추출만 그 로컬 파일을 우선 사용합니다.
 
 운영 PC에서는 추적 파일을 수정하지 않도록 `config.windows.json`을 Git에서 제외된 `config.local.json`으로 복사해 사용합니다. 기본 예제는 외부 게시를 막기 위해 `enabled=false`, `mode=dry`, `notify=false`입니다.
 
@@ -165,7 +165,7 @@ NotebookLM 원고와 URL 기반 장면 추출은 업로드·공개범위를 검�
 
 - `dry`: 원고, 대표 장면 5장, 미리보기, 결과 JSON만 생성합니다. Naver/Telegram 쓰기는 없습니다.
 - `draft`: Naver 임시저장까지 수행합니다. 실제 발행과 Telegram은 하지 않습니다.
-- `publish`: 글 등록 후 제목·텍스트 6구간·이미지 5장·인용구 0개·YouTube OG 카드 1개를 다시 읽어 검증합니다. `notify=true`이면 검증 뒤 Telegram을 한 번만 전송합니다.
+- `publish`: 글 등록 후 날짜 없는 제목·텍스트 6구간·이미지 5장·인용구 0개·회원용 YouTube 직접 링크 1개·YouTube 임베드 0개를 다시 읽어 검증합니다. `notify=true`이면 검증 뒤 Telegram을 한 번만 전송합니다.
 
 상태는 `state/YYYY-MM-DD-KIND-cafe.json`에 기록합니다. 글 등록 직후 URL이 보존되므로 검증이나 Telegram이 실패해도 다음 실행은 기존 글을 재검증하며 새 글을 중복 발행하지 않습니다. 다운로드 원본은 `publish`와 필요한 Telegram 단계가 모두 끝난 뒤에만 삭제합니다. `dry`와 `draft`에서는 다음 승인 단계가 같은 영상 파일을 재사용할 수 있게 보존합니다.
 
