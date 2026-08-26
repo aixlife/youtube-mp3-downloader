@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import path from "node:path";
 import {
   buildPublisherArgs,
+  cafeArticleTitle,
   isCafeTerminal,
   normalizeCafePublisherConfig,
   shouldCleanupReplay,
@@ -57,12 +58,39 @@ test("publisher uses the members-only live for the article link and replay for N
   assert.equal(args[0], path.resolve(rootDir, "publisher/notebook_cafe_auto.py"));
   assert.equal(args[1], item.sourceUrl);
   assert.equal(args[args.indexOf("--notebook-url") + 1], item.uploadedUrl);
+  assert.equal(args[args.indexOf("--title") + 1], "새 강의");
   assert.ok(args.includes("--video-file"));
   assert.deepEqual(args.slice(args.indexOf("--expected-menu-id"), args.indexOf("--expected-menu-id") + 2), [
     "--expected-menu-id", "315",
   ]);
   assert.ok(args.includes("--dry"));
   assert.ok(!args.includes("--notify"));
+});
+
+test("Cafe article titles omit only a leading ISO date", () => {
+  assert.equal(cafeArticleTitle("2026-08-18 AI 로 영상편집 자동화 이렇게 쉽다고?"),
+    "AI 로 영상편집 자동화 이렇게 쉽다고?");
+  assert.equal(cafeArticleTitle("AI 로 영상편집 자동화 이렇게 쉽다고?"),
+    "AI 로 영상편집 자동화 이렇게 쉽다고?");
+  assert.equal(cafeArticleTitle("2026-08-18"), "");
+});
+
+test("publisher rejects a title that is only a date after Cafe normalization", () => {
+  const cafe = normalizeCafePublisherConfig({
+    cafePublisher: {
+      enabled: true,
+      script: "publisher.py",
+      mode: "dry",
+      expectedClubId: "26321967",
+      expectedMenuId: "315",
+    },
+  }, rootDir);
+  assert.throws(() => buildPublisherArgs({
+    cafe,
+    item: { ...item, title: target.sourceDate },
+    target,
+    resultPath: "/tmp/result.json",
+  }), /explicit title/);
 });
 
 test("publisher fails closed without the original members-only live URL", () => {

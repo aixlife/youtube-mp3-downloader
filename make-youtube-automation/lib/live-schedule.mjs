@@ -69,7 +69,7 @@ export function manifestItemForLive(video, sourceDate, kind) {
   return {
     sourceDate,
     sourceVideoId: video.id,
-    sourceUrl: `https://youtu.be/${video.id}`,
+    sourceUrl: `https://www.youtube.com/watch?v=${video.id}`,
     ...courseForKind(kind),
     title,
     description: video.snippet?.description || "",
@@ -104,4 +104,3 @@ export function lessonMatchesTarget(lesson, sourceDate, expectedTitle = null) {
   if (!lesson?.youtubeUrl) return false;
   return lesson.title === expectedTitle || lesson.title?.startsWith(`${sourceDate} `) === true;
 }
-
