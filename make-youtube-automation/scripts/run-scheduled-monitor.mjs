@@ -3,6 +3,7 @@ import path from "node:path";
 import { spawn } from "node:child_process";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { monitorOutcome, monitorPlan } from "../lib/replay-monitor.mjs";
+import { isCafeTerminal, normalizeCafePublisherConfig } from "../lib/cafe-pipeline.mjs";
 import {
   buildRuntimeIncident,
   classifyRuntimeFailure,
@@ -75,9 +76,10 @@ async function currentCommit() {
   }
 }
 
-function liveRunnerArgs(configPath, target) {
+// 라이브 러너가 아니라 파이프라인을 재개한다. 러너만 부르면 카페 단계가 영원히 안 돈다.
+function pipelineRunnerArgs(configPath, target) {
   return [
-    path.join(rootDir, "scripts", "run-scheduled-live.mjs"),
+    path.join(rootDir, "scripts", "run-scheduled-pipeline.mjs"),
     "--config", configPath,
     "--slot", "monitor",
     "--date", target.sourceDate,
@@ -94,22 +96,30 @@ export async function main(argv = process.argv.slice(2)) {
   const logsDir = path.resolve(rootDir, config.logsDir || "logs");
   const statePath = path.join(stateDir, `${target.sourceDate}-${target.kind}.json`);
   const reportPath = path.join(stateDir, `${target.sourceDate}-${target.kind}-monitor.json`);
+  const cafe = normalizeCafePublisherConfig(config, rootDir);
+  const cafeStatePath = path.join(stateDir, `${target.sourceDate}-${target.kind}-cafe.json`);
+  const readCafe = async () => {
+    if (!cafe.enabled) return null;
+    const state = await readJson(cafeStatePath).catch(() => null);
+    return { status: state?.status || "missing", terminal: isCafeTerminal(state, cafe) };
+  };
+
   const before = await readJson(statePath).catch(() => null);
-  const plan = monitorPlan(before);
+  const plan = monitorPlan(before, await readCafe());
   const startedAt = new Date().toISOString();
   const commit = await currentCommit();
   let runnerError = null;
 
   if (plan.action === "resume") {
     try {
-      await run(process.execPath, liveRunnerArgs(configPath, target));
+      await run(process.execPath, pipelineRunnerArgs(configPath, target));
     } catch (error) {
       runnerError = error;
     }
   }
 
   const after = await readJson(statePath).catch(() => null);
-  const outcome = monitorOutcome(after, plan.action === "resume");
+  const outcome = monitorOutcome(after, plan.action === "resume", await readCafe());
   const report = {
     version: 1,
     sourceDate: target.sourceDate,
@@ -119,6 +129,9 @@ export async function main(argv = process.argv.slice(2)) {
     reason: plan.reason,
     beforeStatus: plan.beforeStatus,
     afterStatus: outcome.afterStatus,
+    cafeMode: cafe.enabled ? cafe.mode : null,
+    cafeBeforeStatus: plan.cafeStatus ?? null,
+    cafeAfterStatus: outcome.cafeStatus ?? null,
     runnerExitOk: !runnerError,
     commit,
     startedAt,
@@ -128,7 +141,10 @@ export async function main(argv = process.argv.slice(2)) {
   console.log(JSON.stringify({ ...report, reportPath }));
 
   if (!outcome.ok) {
-    const error = runnerError || new Error(`Replay remained ${outcome.afterStatus} after the Windows monitor pass.`);
+    const error = runnerError
+      || (outcome.status === "cafe-pending"
+        ? new Error(`Cafe stage remained ${outcome.cafeStatus} after the Windows monitor pass.`)
+        : new Error(`Replay remained ${outcome.afterStatus} after the Windows monitor pass.`));
     const classification = after?.failureClass || classifyRuntimeFailure(error);
     const incident = buildRuntimeIncident({
       sourceDate: target.sourceDate,

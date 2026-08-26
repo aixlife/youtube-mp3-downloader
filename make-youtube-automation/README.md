@@ -139,7 +139,11 @@ node scripts\preflight-runtime.mjs --config config.local.json --repair --slot ma
 
 ## Naver Cafe 후속 파이프라인
 
-예약 작업의 진입점은 `scripts/run-scheduled-pipeline.mjs`입니다. 이 스크립트가 기존 라이브 러너를 먼저 완료한 뒤 `cafePublisher.enabled=true`일 때만 카페 게시기를 실행합니다. 카페 단계는 별도 상태 파일을 사용하므로 카페 오류를 재시도할 때 YouTube 업로드와 라운지 등록을 반복하지 않습니다.
+예약 작업의 진입점은 `scripts/run-scheduled-pipeline.mjs`입니다.
+
+`AIMAX-Live-Replay-Monitor`도 라이브 러너가 아니라 이 파이프라인을 재개합니다. 러너만 부르면 세 슬롯이 실패한 주에 라이브는 복구돼도 카페 단계는 영원히 실행되지 않습니다. 모니터는 라이브 상태가 `complete`여도 카페 상태가 종결되지 않았으면 한 번 더 이어서 돌리고, 카페가 종결되지 않은 실행은 `cafe-pending`으로 남겨 정상 완료로 보고하지 않습니다.
+
+이 진입점이 기존 라이브 러너를 먼저 완료한 뒤 `cafePublisher.enabled=true`일 때만 카페 게시기를 실행합니다. 카페 단계는 별도 상태 파일을 사용하므로 카페 오류를 재시도할 때 YouTube 업로드와 라운지 등록을 반복하지 않습니다.
 
 NotebookLM 원고와 URL 기반 장면 추출은 업로드·공개범위를 검증한 일부공개 다시보기 `uploadedUrl`을 사용합니다. 카페 글 제목에서는 자동으로 앞쪽 `YYYY-MM-DD`를 빼고 레퍼런스 글처럼 본문 제목만 사용합니다. 글 맨 아래에는 원본 라이브 영상 ID로 만든 회원 시청용 `https://www.youtube.com/watch?v=...` 주소를 임베드 카드가 아닌 직접 클릭 링크로 넣고, 전달된 전체 URL과 발행된 `href`가 정확히 같은지 재검증합니다. 기존 다운로드 원본이 남아 있으면 장면 추출만 그 로컬 파일을 우선 사용합니다.
 
