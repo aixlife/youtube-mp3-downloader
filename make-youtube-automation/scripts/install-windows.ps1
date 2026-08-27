@@ -1,5 +1,7 @@
 param(
-  [string]$InstallRoot = (Split-Path -Parent $PSScriptRoot)
+  [string]$InstallRoot = (Split-Path -Parent $PSScriptRoot),
+  [Alias("Config")]
+  [string]$ConfigFile = "config.windows.json"
 )
 
 $ErrorActionPreference = "Stop"
@@ -9,6 +11,34 @@ $node = Get-Command node.exe -ErrorAction Stop
 $ytDlp = Get-Command yt-dlp.exe -ErrorAction Stop
 $invokeScript = Join-Path $InstallRoot "scripts\invoke-scheduled.ps1"
 if (-not (Test-Path $invokeScript)) { throw "Scheduled runner not found: $invokeScript" }
+
+$configPath = if ([IO.Path]::IsPathRooted($ConfigFile)) { $ConfigFile } else { Join-Path $InstallRoot $ConfigFile }
+if (-not (Test-Path $configPath)) { throw "Windows config not found: $configPath" }
+$runtimeConfig = Get-Content -Raw -Encoding UTF8 $configPath | ConvertFrom-Json
+$cafeEnabled = [bool]($runtimeConfig.cafePublisher -and $runtimeConfig.cafePublisher.enabled)
+$cafePython = $null
+if ($cafeEnabled) {
+  $cafePython = [string]$runtimeConfig.cafePublisher.python
+  $cafeScript = [string]$runtimeConfig.cafePublisher.script
+  $expectedClubId = [string]$runtimeConfig.cafePublisher.expectedClubId
+  $expectedMenuId = [string]$runtimeConfig.cafePublisher.expectedMenuId
+  if (-not $cafePython -or -not (Test-Path $cafePython)) {
+    throw "Cafe publisher Python is missing: $cafePython"
+  }
+  if (-not $cafeScript -or -not (Test-Path $cafeScript)) {
+    throw "Cafe publisher script is missing: $cafeScript"
+  }
+  if (-not $expectedClubId -or -not $expectedMenuId) {
+    throw "Cafe publisher expectedClubId/expectedMenuId are required."
+  }
+  Push-Location (Split-Path -Parent $cafeScript)
+  try {
+    & $cafePython -c "import importlib.metadata as m; import notebook_cafe_auto; assert m.version('notebooklm-py') == '0.7.3'; print('Cafe publisher dependencies: OK')"
+    if ($LASTEXITCODE -ne 0) { throw "Cafe publisher dependency probe failed." }
+  } finally {
+    Pop-Location
+  }
+}
 
 $secretDir = Join-Path $env:LOCALAPPDATA "AIMAX\LiveReplay\secrets"
 $requiredSecrets = @(
@@ -35,25 +65,31 @@ $settings = New-ScheduledTaskSettingsSet `
 function Register-LiveReplayTask {
   param(
     [string]$TaskName,
-    [string]$At,
+    [string]$WednesdayAt,
+    [string]$FridayAt,
     [string]$Slot
   )
-  $arguments = '-NoProfile -NonInteractive -WindowStyle Hidden -ExecutionPolicy Bypass -File "{0}" -Slot {1}' -f $invokeScript, $Slot
+  $arguments = '-NoProfile -NonInteractive -WindowStyle Hidden -ExecutionPolicy Bypass -File "{0}" -Slot {1} -Config "{2}"' -f $invokeScript, $Slot, $configPath
   $action = New-ScheduledTaskAction -Execute "powershell.exe" -Argument $arguments -WorkingDirectory $InstallRoot
-  $trigger = New-ScheduledTaskTrigger -Weekly -WeeksInterval 1 -DaysOfWeek Wednesday,Friday -At $At
+  $triggers = @(
+    New-ScheduledTaskTrigger -Weekly -WeeksInterval 1 -DaysOfWeek Wednesday -At $WednesdayAt
+    New-ScheduledTaskTrigger -Weekly -WeeksInterval 1 -DaysOfWeek Friday -At $FridayAt
+  )
   $task = New-ScheduledTask `
     -Action $action `
-    -Trigger $trigger `
+    -Trigger $triggers `
     -Principal $principal `
     -Settings $settings `
     -Description "AIMAX live replay automation. The Windows user must remain signed in; the screen may be locked."
   Register-ScheduledTask -TaskName $TaskName -InputObject $task -Force | Out-Null
 }
 
-Register-LiveReplayTask -TaskName "AIMAX-Live-Replay-Primary" -At "10:00" -Slot "primary"
-Register-LiveReplayTask -TaskName "AIMAX-Live-Replay-Retry" -At "14:00" -Slot "retry"
+Register-LiveReplayTask -TaskName "AIMAX-Live-Replay-Primary" -WednesdayAt "03:10" -FridayAt "01:10" -Slot "primary"
+Register-LiveReplayTask -TaskName "AIMAX-Live-Replay-Retry" -WednesdayAt "05:10" -FridayAt "03:10" -Slot "retry"
+Register-LiveReplayTask -TaskName "AIMAX-Live-Replay-Final" -WednesdayAt "10:10" -FridayAt "08:10" -Slot "final"
 
-$result = foreach ($name in @("AIMAX-Live-Replay-Primary", "AIMAX-Live-Replay-Retry")) {
+$cafeLabel = if ($cafeEnabled) { "Enabled" } else { "Disabled" }
+$result = foreach ($name in @("AIMAX-Live-Replay-Primary", "AIMAX-Live-Replay-Retry", "AIMAX-Live-Replay-Final")) {
   $task = Get-ScheduledTask -TaskName $name
   $info = Get-ScheduledTaskInfo -TaskName $name
   [PSCustomObject]@{
@@ -62,7 +98,8 @@ $result = foreach ($name in @("AIMAX-Live-Replay-Primary", "AIMAX-Live-Replay-Re
     NextRunTime = $info.NextRunTime
     Node = $node.Source
     YtDlp = $ytDlp.Source
+    CafePublisher = $cafeLabel
+    CafePython = $cafePython
   }
 }
 $result | ConvertTo-Json -Depth 3
-

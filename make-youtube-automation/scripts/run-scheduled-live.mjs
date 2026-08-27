@@ -137,6 +137,15 @@ async function listRecentChannelVideos(youtube, maxPages = 3) {
   return { channel, videos };
 }
 
+function assertExpectedChannel(config, channel) {
+  const expectedChannelId = config.expectedChannelId || null;
+  if (expectedChannelId && channel?.id !== expectedChannelId) {
+    throw new Error(
+      `Authorized YouTube channel mismatch: expected ${expectedChannelId}, got ${channel?.id || "none"}.`,
+    );
+  }
+}
+
 async function sourceVideo(youtube, videos, sourceDate, explicitSource) {
   const explicitId = sourceVideoId(explicitSource);
   if (explicitSource && !explicitId) throw new Error(`Invalid --source value: ${explicitSource}`);
@@ -204,15 +213,26 @@ async function exportBrowserCookies(config, sourceUrl, cookieFile) {
     "--no-warnings",
     sourceUrl
   ];
+  const runCookieExport = async () => {
+    try {
+      await run(ytdlp, ytdlpArgs, { capture: true });
+    } catch (error) {
+      const usableCookieFile = await fs.stat(cookieFile)
+        .then((stat) => stat.isFile() && stat.size >= 100)
+        .catch(() => false);
+      if (!usableCookieFile) throw error;
+      console.log("Browser cookies were exported; continuing despite the yt-dlp source probe error.");
+    }
+  };
   let closedEdge = null;
   try {
-    await run(ytdlp, ytdlpArgs, { capture: true });
+    await runCookieExport();
   } catch (error) {
     const cookieLocked = /Could not copy (?:Chrome|Chromium|Edge) cookie database/i.test(error.message);
     if (process.platform !== "win32" || config.closeEdgeForCookieExport === false || !cookieLocked) throw error;
     closedEdge = await closeEdgeForCookieExport(config);
     await fs.rm(cookieFile, { force: true });
-    await run(ytdlp, ytdlpArgs, { capture: true });
+    await runCookieExport();
   } finally {
     if (closedEdge?.hadVisibleWindow && config.restoreEdgeAfterCookieExport !== false) {
       await restoreEdgeWindow(closedEdge.edgePath);
@@ -359,6 +379,55 @@ async function ensureEdgeAutomationProfile(config) {
   return { profileDir, bootstrapped: true };
 }
 
+function studioChannelIdFromUrl(rawUrl) {
+  try {
+    const match = new URL(rawUrl).pathname.match(/^\/channel\/([^/]+)/);
+    return match?.[1] || null;
+  } catch {
+    return null;
+  }
+}
+
+async function activateAndVerifyStudioChannel(page, config) {
+  if (config.studioChannelName) {
+    await page.goto("https://www.youtube.com/channel_switcher", {
+      waitUntil: "domcontentloaded",
+      timeout: 90000
+    });
+    await page.waitForTimeout(8000);
+
+    const accountItem = page
+      .locator("ytd-account-item-renderer")
+      .filter({ hasText: config.studioChannelName })
+      .first();
+    const exactText = page.getByText(config.studioChannelName, { exact: true }).first();
+    const target = await accountItem.count() === 1 ? accountItem : exactText;
+    if (await target.count() !== 1) {
+      throw new Error(`Cannot find channel "${config.studioChannelName}" in the account's channel list.`);
+    }
+    await target.click({ force: true, timeout: 15000 });
+    await page.waitForTimeout(9000);
+  }
+
+  await page.goto("https://studio.youtube.com", {
+    waitUntil: "domcontentloaded",
+    timeout: 90000
+  });
+  await page.waitForTimeout(8000);
+
+  const actualChannelId = studioChannelIdFromUrl(page.url());
+  if (config.expectedChannelId && actualChannelId !== config.expectedChannelId) {
+    throw new Error(
+      `Dedicated Edge Studio channel mismatch: expected ${config.expectedChannelId}, got ${actualChannelId || "none"}.`,
+    );
+  }
+  const studioShell = page.locator("ytcp-app, ytcp-header");
+  if (await studioShell.count() === 0) {
+    throw new Error("Dedicated Edge profile could not open the authorized YouTube Studio channel.");
+  }
+  return actualChannelId;
+}
+
 async function exportBrowserCookiesViaEdge(config, cookieFile) {
   const [{ chromium }, edgePath, profile] = await Promise.all([
     import("playwright-core"),
@@ -385,6 +454,12 @@ async function exportBrowserCookiesViaEdge(config, cookieFile) {
     browser = await chromium.connectOverCDP(`http://127.0.0.1:${port}`);
     const context = browser.contexts()[0];
     if (!context) throw new Error("Automation Edge opened without its persistent browser context.");
+
+    // Refresh the authenticated Studio session inside the dedicated persistent profile before
+    // copying cookies into a temporary headless context. Reading cookies from about:blank left
+    // an apparently valid but stale 44-cookie session that repeatedly lost the channel switcher.
+    const page = context.pages()[0] || await context.newPage();
+    const activeChannelId = await activateAndVerifyStudioChannel(page, config);
     const allCookies = await context.cookies();
     const cookies = allCookies.filter((cookie) => cookie.name && cookie.value && isYouTubeGoogleCookie(cookie));
     if (cookies.length === 0) {
@@ -406,6 +481,7 @@ async function exportBrowserCookiesViaEdge(config, cookieFile) {
     await fs.writeFile(cookieFile, netscapeCookieText(cookies), { mode: 0o600 });
     const stat = await fs.stat(cookieFile);
     if (stat.size < 100) throw new Error("Edge cookie export produced an unexpectedly small file.");
+    console.log(`Dedicated Edge Studio session refreshed${activeChannelId ? ` for ${activeChannelId}` : ""}.`);
     console.log(`YouTube/Google cookies were exported through the dedicated Edge profile (${cookies.length} cookies).`);
   } finally {
     if (browser) await browser.close().catch(() => {});
@@ -419,12 +495,15 @@ function parseNetscapeCookies(text) {
     .filter((line) => line && (!line.startsWith("#") || line.startsWith("#HttpOnly_")))
     .map((line) => {
       const [rawDomain, , cookiePath, secure, expires, name, ...rest] = line.split("\t");
+      const parsedExpires = Number(expires);
       return {
         name,
         value: rest.join("\t"),
         domain: rawDomain.replace(/^#HttpOnly_/, ""),
         path: cookiePath || "/",
-        expires: Number(expires) > 0 ? Number(expires) : -1,
+        expires: Number.isFinite(parsedExpires) && parsedExpires > 0
+          ? Math.min(Math.floor(parsedExpires), 2_147_483_647)
+          : -1,
         httpOnly: rawDomain.startsWith("#HttpOnly_"),
         secure: secure === "TRUE"
       };
@@ -449,6 +528,7 @@ async function probeStudio(config, item, cookieFile) {
     const context = await browser.newContext();
     await context.addCookies(cookies);
     const page = await context.newPage();
+    await activateAndVerifyStudioChannel(page, config);
     await page.goto(`https://studio.youtube.com/video/${item.sourceVideoId}/edit`, {
       waitUntil: "domcontentloaded",
       timeout: 60000
@@ -524,11 +604,17 @@ async function doctor({ args, config, target, paths }) {
     ["oauthClient", names.oauthClient],
     ["oauthToken", names.oauthToken],
     ["databaseUrl", names.databaseUrl]
-  ].map(async ([label, service]) => [label, Boolean(await getSecret(config, service))])));
+  ].map(async ([label, service]) => [
+    label,
+    label === "databaseUrl"
+      ? Boolean(process.env.DATABASE_URL || await getSecret(config, service))
+      : Boolean(await getSecret(config, service))
+  ])));
   if (Object.values(secretChecks).some((present) => !present)) throw new Error("One or more secure credentials are missing.");
 
   const { youtube } = await googleContext(config);
   const { channel, videos } = await listRecentChannelVideos(youtube);
+  assertExpectedChannel(config, channel);
   const selection = await sourceVideo(youtube, videos, target.sourceDate, args.source);
   if (!selection.selected) throw new Error(`No YouTube live found for ${target.sourceDate}.`);
   const item = manifestItemForLive(selection.selected, target.sourceDate, target.kind);
@@ -602,7 +688,8 @@ async function processScheduled({ args, config, configPath, target, paths }) {
 
   await saveState("discovering");
   const { youtube } = await googleContext(config);
-  const { videos } = await listRecentChannelVideos(youtube);
+  const { channel, videos } = await listRecentChannelVideos(youtube);
+  assertExpectedChannel(config, channel);
   const selection = await sourceVideo(youtube, videos, target.sourceDate, args.source);
   if (!selection.selected) {
     await saveState("waiting-source");
@@ -647,7 +734,8 @@ async function processScheduled({ args, config, configPath, target, paths }) {
         "--manifest", manifestPath,
         "--extract-studio-links",
         "--download-studio",
-        "--cookie-file", cookieFile
+        "--cookie-file", cookieFile,
+        ...(config.studioChannelName ? ["--studio-channel-name", config.studioChannelName] : [])
       ]);
       current = await assertManifestOk(manifestPath, "Studio download");
     }
@@ -673,7 +761,11 @@ async function processScheduled({ args, config, configPath, target, paths }) {
       await verifyPrisma.$disconnect();
     }
 
-    await runRepublish(["--config", configPath, "--manifest", manifestPath, "--cleanup-downloads"]);
+    if (config.cafePublisher?.enabled === true) {
+      console.log("Cafe publisher is enabled; keeping the downloaded source until the Cafe pipeline completes.");
+    } else {
+      await runRepublish(["--config", configPath, "--manifest", manifestPath, "--cleanup-downloads"]);
+    }
     await saveState("complete", {
       sourceVideoId: current.sourceVideoId,
       uploadedUrl: current.uploadedUrl,

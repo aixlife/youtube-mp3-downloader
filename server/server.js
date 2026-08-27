@@ -1617,7 +1617,7 @@ function getVideoInfo(url) {
   });
 }
 
-const { runPlaudJob, uploadToPlaud } = createPlaudExtensionUpload({
+const { runPlaudJob, uploadToPlaud, generateAndExport } = createPlaudExtensionUpload({
   cookiesArgs: COOKIES_ARGS,
   plaudQueueDir: PLAUD_QUEUE_DIR,
   plaudMaxSeconds: PLAUD_MAX_SECONDS,
@@ -1656,6 +1656,7 @@ registerPlaudExtensionRoutes(app, {
   plaudQueueDir: PLAUD_QUEUE_DIR,
   runPlaudJob,
   uploadToPlaud,
+  generateAndExport,
 });
 
 registerPlaudMeetingRoutes(app, {

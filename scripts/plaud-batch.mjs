@@ -55,6 +55,9 @@ const flagValue = (f) => {
 };
 
 const DRY_RUN = hasFlag('--dry-run');
+// 준비된 오디오를 올리기만 하고 전사본은 plaud-collect.mjs로 나중에 회수한다.
+// 긴 라이브는 전사 생성이 오래 걸려 업로드와 회수를 붙여두면 타임아웃으로 잘린다.
+const UPLOAD_ONLY = hasFlag('--upload-only');
 const STATUS_ONLY = hasFlag('--status');
 const TYPE_FILTER = flagValue('--type');
 
@@ -119,7 +122,9 @@ async function submit(item, prepared) {
   const endpoint = prep ? '/plaud/retry-failed' : '/plaud/send';
   // 제목을 함께 넘긴다. 서버가 yt-dlp 출력을 파싱하면 윈도우 콘솔 인코딩 때문에
   // 한글이 깨져 PLAUD에 'audio 2' 같은 이름으로 올라간다.
-  const body = prep ? { filename: prep.queueFilename } : { url: item.url, title: item.title };
+  const body = prep
+    ? { filename: prep.queueFilename, uploadOnly: UPLOAD_ONLY }
+    : { url: item.url, title: item.title, uploadOnly: UPLOAD_ONLY };
 
   const res = await fetch(`${SERVER}${endpoint}`, {
     method: 'POST',
@@ -133,7 +138,10 @@ async function submit(item, prepared) {
 }
 
 async function waitForJob(jobId, item) {
-  const timeoutMs = Math.max(JOB_TIMEOUT_MIN_MS, item.duration * 1000 * JOB_TIMEOUT_FACTOR);
+  // 업로드만 하는 모드는 전사 생성을 기다리지 않으므로 길이와 무관하게 짧다.
+  const timeoutMs = UPLOAD_ONLY
+    ? 25 * 60 * 1000
+    : Math.max(JOB_TIMEOUT_MIN_MS, item.duration * 1000 * JOB_TIMEOUT_FACTOR);
   const deadline = Date.now() + timeoutMs;
   let lastPhase = '';
 

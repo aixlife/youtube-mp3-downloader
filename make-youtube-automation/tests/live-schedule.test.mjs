@@ -43,6 +43,7 @@ test("manifest resume preserves upload recovery fields and safety settings", () 
     id: "source123",
     snippet: { title: "수업 제목", description: "설명" }
   }, "2026-07-14", "ai");
+  assert.equal(fresh.sourceUrl, "https://www.youtube.com/watch?v=source123");
   const merged = mergeResumableManifestItem({
     ...fresh,
     filePath: "downloads/source.mp4",
@@ -67,4 +68,3 @@ test("date-prefixed registered lesson prevents duplicate upload", () => {
     youtubeUrl: null
   }, "2026-07-14", "2026-07-14 새 제목"), false);
 });
-
