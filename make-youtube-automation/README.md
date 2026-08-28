@@ -110,9 +110,13 @@ npm run cleanup-downloads
 
 Windows 작업 스케줄러에는 다음 네 작업을 등록합니다.
 
-- `AIMAX-Live-Replay-Primary`: 수요일 03:10 · 금요일 01:10
-- `AIMAX-Live-Replay-Retry`: 수요일 05:10 · 금요일 03:10
-- `AIMAX-Live-Replay-Final`: 수요일 10:10 · 금요일 08:10
+- `AIMAX-Live-Replay-Primary`: 수요일·금요일 11:00
+- `AIMAX-Live-Replay-Retry`: 수요일·금요일 13:00
+- `AIMAX-Live-Replay-Final`: 수요일·금요일 15:00
+- `AIMAX-Live-Replay-Monitor`: 수요일·금요일 16:00
+
+첫 슬롯이 라이브 종료 6시간 뒤(03:10)였을 때는 YouTube Studio 다운로드 링크가 아직 없어
+`Studio download link not found`로 매주 세 슬롯이 모두 실패했습니다. 실측상 11시대에는 링크가 준비됩니다.
 - `AIMAX-Live-Replay-Monitor`: 수요일 11:30 · 금요일 11:30
 
 수요일은 전날 화요일 21시 AI 라이브를 `라이브 다시보기 - AI`에, 금요일은 전날 목요일 19시 비즈니스 라이브를 `라이브 다시보기 - 비즈니스`에 등록합니다. 첫 실행은 라이브 시작 약 6시간 뒤이며, 이후 두 번의 실행은 상태 파일과 DB를 확인해 완료된 경우 즉시 종료합니다. 업로드가 끝난 뒤 DB 반영이 실패한 경우에도 저장된 새 영상 URL부터 이어서 처리하므로 중복 업로드하지 않습니다.
@@ -166,6 +170,8 @@ NotebookLM 원고와 URL 기반 장면 추출은 업로드·공개범위를 검�
 ```
 
 모드별 완료 기준은 서로 독립적입니다.
+
+카페 게시 대상은 기본이 AI 라이브뿐입니다(`kinds` 기본값 `["ai"]`). 게시판이 AI 라이브 기준글 형식에 맞춰 고정돼 있어, 비즈니스 라이브까지 같은 게시판에 넣지 않습니다. 필요하면 `"kinds": ["ai", "business"]`로 넓힙니다.
 
 - `dry`: 원고, 대표 장면 5장, 미리보기, 결과 JSON만 생성합니다. Naver/Telegram 쓰기는 없습니다.
 - `draft`: Naver 임시저장까지 수행합니다. 실제 발행과 Telegram은 하지 않습니다.

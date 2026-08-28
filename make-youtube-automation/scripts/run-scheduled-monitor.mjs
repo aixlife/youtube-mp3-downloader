@@ -3,7 +3,7 @@ import path from "node:path";
 import { spawn } from "node:child_process";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { monitorOutcome, monitorPlan } from "../lib/replay-monitor.mjs";
-import { isCafeTerminal, normalizeCafePublisherConfig } from "../lib/cafe-pipeline.mjs";
+import { cafeAppliesTo, isCafeTerminal, normalizeCafePublisherConfig } from "../lib/cafe-pipeline.mjs";
 import {
   buildRuntimeIncident,
   classifyRuntimeFailure,
@@ -99,7 +99,7 @@ export async function main(argv = process.argv.slice(2)) {
   const cafe = normalizeCafePublisherConfig(config, rootDir);
   const cafeStatePath = path.join(stateDir, `${target.sourceDate}-${target.kind}-cafe.json`);
   const readCafe = async () => {
-    if (!cafe.enabled) return null;
+    if (!cafeAppliesTo(cafe, target.kind)) return null;
     const state = await readJson(cafeStatePath).catch(() => null);
     return { status: state?.status || "missing", terminal: isCafeTerminal(state, cafe) };
   };
@@ -129,7 +129,7 @@ export async function main(argv = process.argv.slice(2)) {
     reason: plan.reason,
     beforeStatus: plan.beforeStatus,
     afterStatus: outcome.afterStatus,
-    cafeMode: cafe.enabled ? cafe.mode : null,
+    cafeMode: cafeAppliesTo(cafe, target.kind) ? cafe.mode : null,
     cafeBeforeStatus: plan.cafeStatus ?? null,
     cafeAfterStatus: outcome.cafeStatus ?? null,
     runnerExitOk: !runnerError,

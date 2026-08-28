@@ -1,6 +1,10 @@
 import path from "node:path";
 
 export const CAFE_MODES = new Set(["dry", "draft", "publish"]);
+export const CAFE_KINDS = new Set(["ai", "business"]);
+// 카페 게시판은 AI 라이브 기준글 형식에 맞춰 고정돼 있다.
+// 비즈니스 라이브까지 같은 게시판에 밀어 넣지 않도록 기본값을 ai 로 둔다.
+export const DEFAULT_CAFE_KINDS = Object.freeze(["ai"]);
 export const APPROVED_CAFE_TARGET = Object.freeze({
   clubId: "26321967",
   menuId: "315",
@@ -10,9 +14,20 @@ export function cafeArticleTitle(title) {
   return String(title || "").replace(/^\d{4}-\d{2}-\d{2}(?:\s+|$)/, "").trim();
 }
 
+export function cafeAppliesTo(cafe, kind) {
+  return Boolean(cafe?.enabled) && cafe.kinds.includes(kind);
+}
+
 export function normalizeCafePublisherConfig(config, rootDir) {
   const raw = config?.cafePublisher || {};
   const mode = raw.mode || "dry";
+  const kinds = raw.kinds === undefined ? [...DEFAULT_CAFE_KINDS] : raw.kinds;
+  if (!Array.isArray(kinds) || kinds.length === 0) {
+    throw new Error("cafePublisher.kinds must be a non-empty array.");
+  }
+  for (const kind of kinds) {
+    if (!CAFE_KINDS.has(kind)) throw new Error(`cafePublisher.kinds may only contain ai or business; got ${kind}.`);
+  }
   if (!CAFE_MODES.has(mode)) throw new Error(`cafePublisher.mode must be dry, draft, or publish; got ${mode}.`);
   const imageCount = Number(raw.imageCount ?? 5);
   if (!Number.isInteger(imageCount) || imageCount <= 0) {
@@ -37,6 +52,7 @@ export function normalizeCafePublisherConfig(config, rootDir) {
     );
   }
   return {
+    kinds,
     enabled: raw.enabled === true,
     mode,
     python: raw.python || "python",

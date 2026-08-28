@@ -100,21 +100,21 @@ function Register-LiveReplayMonitorTask {
   $arguments = '-NoProfile -NonInteractive -WindowStyle Hidden -ExecutionPolicy Bypass -File "{0}" -Config "{1}"' -f $invokeMonitor, $configPath
   $action = New-ScheduledTaskAction -Execute "powershell.exe" -Argument $arguments -WorkingDirectory $InstallRoot
   $triggers = @(
-    New-ScheduledTaskTrigger -Weekly -WeeksInterval 1 -DaysOfWeek Wednesday -At "11:30"
-    New-ScheduledTaskTrigger -Weekly -WeeksInterval 1 -DaysOfWeek Friday -At "11:30"
+    New-ScheduledTaskTrigger -Weekly -WeeksInterval 1 -DaysOfWeek Wednesday -At "16:00"
+    New-ScheduledTaskTrigger -Weekly -WeeksInterval 1 -DaysOfWeek Friday -At "16:00"
   )
   $task = New-ScheduledTask `
     -Action $action `
     -Trigger $triggers `
     -Principal $principal `
     -Settings $settings `
-    -Description "AIMAX live replay Windows monitor. It resumes YouTube and lounge work once when incomplete; it never invokes Cafe or Telegram."
+    -Description "AIMAX live replay Windows monitor. It resumes the full replay pipeline once when the replay or its Cafe stage is incomplete."
   Register-ScheduledTask -TaskName "AIMAX-Live-Replay-Monitor" -InputObject $task -Force | Out-Null
 }
 
-Register-LiveReplayTask -TaskName "AIMAX-Live-Replay-Primary" -WednesdayAt "03:10" -FridayAt "01:10" -Slot "primary"
-Register-LiveReplayTask -TaskName "AIMAX-Live-Replay-Retry" -WednesdayAt "05:10" -FridayAt "03:10" -Slot "retry"
-Register-LiveReplayTask -TaskName "AIMAX-Live-Replay-Final" -WednesdayAt "10:10" -FridayAt "08:10" -Slot "final"
+Register-LiveReplayTask -TaskName "AIMAX-Live-Replay-Primary" -WednesdayAt "11:00" -FridayAt "11:00" -Slot "primary"
+Register-LiveReplayTask -TaskName "AIMAX-Live-Replay-Retry" -WednesdayAt "13:00" -FridayAt "13:00" -Slot "retry"
+Register-LiveReplayTask -TaskName "AIMAX-Live-Replay-Final" -WednesdayAt "15:00" -FridayAt "15:00" -Slot "final"
 Register-LiveReplayMonitorTask
 
 $cafeLabel = if ($cafeEnabled) { "Enabled" } else { "Disabled" }

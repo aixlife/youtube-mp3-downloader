@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import path from "node:path";
 import {
   buildPublisherArgs,
+  cafeAppliesTo,
   cafeArticleTitle,
   isCafeTerminal,
   normalizeCafePublisherConfig,
@@ -164,4 +165,44 @@ test("state keeps known article URL when a notification retry fails", () => {
   assert.equal(state.sourceUrl, item.sourceUrl);
   assert.equal(state.verification.ok, true);
   assert.equal(state.error, "network");
+});
+
+test("Cafe publishing defaults to AI lives only", () => {
+  const cafe = normalizeCafePublisherConfig({
+    cafePublisher: {
+      enabled: true,
+      script: "publisher.py",
+      mode: "draft",
+      expectedClubId: "26321967",
+      expectedMenuId: "315",
+    },
+  }, rootDir);
+  assert.deepEqual(cafe.kinds, ["ai"]);
+  assert.equal(cafeAppliesTo(cafe, "ai"), true);
+  assert.equal(cafeAppliesTo(cafe, "business"), false);
+});
+
+test("Cafe kinds can be widened explicitly and are validated", () => {
+  const both = normalizeCafePublisherConfig({
+    cafePublisher: {
+      enabled: true,
+      script: "publisher.py",
+      mode: "draft",
+      kinds: ["ai", "business"],
+      expectedClubId: "26321967",
+      expectedMenuId: "315",
+    },
+  }, rootDir);
+  assert.equal(cafeAppliesTo(both, "business"), true);
+  assert.throws(() => normalizeCafePublisherConfig({
+    cafePublisher: { enabled: true, script: "p.py", kinds: [], expectedClubId: "26321967", expectedMenuId: "315" },
+  }, rootDir), /non-empty array/);
+  assert.throws(() => normalizeCafePublisherConfig({
+    cafePublisher: { enabled: true, script: "p.py", kinds: ["weekly"], expectedClubId: "26321967", expectedMenuId: "315" },
+  }, rootDir), /ai or business/);
+});
+
+test("a disabled publisher never applies to any kind", () => {
+  const off = normalizeCafePublisherConfig({ cafePublisher: { enabled: false } }, rootDir);
+  assert.equal(cafeAppliesTo(off, "ai"), false);
 });

@@ -4,6 +4,7 @@ import { spawn } from "node:child_process";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import {
   buildPublisherArgs,
+  cafeAppliesTo,
   isCafeTerminal,
   normalizeCafePublisherConfig,
   shouldCleanupReplay,
@@ -144,6 +145,10 @@ export async function main(argv = process.argv.slice(2)) {
     const cafe = normalizeCafePublisherConfig(config, rootDir);
     if (!cafe.enabled) {
       console.log("Cafe publisher is disabled; replay automation finished without a Cafe write.");
+      return;
+    }
+    if (!cafeAppliesTo(cafe, target.kind)) {
+      console.log(`Cafe publishing is not configured for ${target.kind} lives (kinds: ${cafe.kinds.join(", ")}).`);
       return;
     }
 
