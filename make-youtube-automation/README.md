@@ -110,13 +110,14 @@ npm run cleanup-downloads
 
 Windows 작업 스케줄러에는 다음 네 작업을 등록합니다.
 
-- `AIMAX-Live-Replay-Primary`: 수요일·금요일 11:00
-- `AIMAX-Live-Replay-Retry`: 수요일·금요일 13:00
-- `AIMAX-Live-Replay-Final`: 수요일·금요일 15:00
-- `AIMAX-Live-Replay-Monitor`: 수요일·금요일 16:00
+- `AIMAX-Live-Replay-Primary`: 수요일·금요일 07:00
+- `AIMAX-Live-Replay-Retry`: 수요일·금요일 09:00
+- `AIMAX-Live-Replay-Final`: 수요일·금요일 11:00
+- `AIMAX-Live-Replay-Monitor`: 수요일·금요일 13:00
 
-첫 슬롯이 라이브 종료 6시간 뒤(03:10)였을 때는 YouTube Studio 다운로드 링크가 아직 없어
-`Studio download link not found`로 매주 세 슬롯이 모두 실패했습니다. 실측상 11시대에는 링크가 준비됩니다.
+새벽 슬롯(수 03:10 / 금 01:10)은 YouTube Studio 다운로드 링크가 아직 생성되기 전이라 매주 전부 실패했습니다.
+실측: 8/26 10:10 실패·11:30 성공, 8/28 08:10 실패. 07:00·09:00 도 링크가 없을 가능성이 높지만,
+준비되면 그만큼 일찍 끝나므로 이른 시도를 남겨두고 11:00 을 최종 안전선으로 둡니다.
 - `AIMAX-Live-Replay-Monitor`: 수요일 11:30 · 금요일 11:30
 
 수요일은 전날 화요일 21시 AI 라이브를 `라이브 다시보기 - AI`에, 금요일은 전날 목요일 19시 비즈니스 라이브를 `라이브 다시보기 - 비즈니스`에 등록합니다. 첫 실행은 라이브 시작 약 6시간 뒤이며, 이후 두 번의 실행은 상태 파일과 DB를 확인해 완료된 경우 즉시 종료합니다. 업로드가 끝난 뒤 DB 반영이 실패한 경우에도 저장된 새 영상 URL부터 이어서 처리하므로 중복 업로드하지 않습니다.
